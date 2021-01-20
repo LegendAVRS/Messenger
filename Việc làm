@@ -1,3 +1,30 @@
+Chức năng:
+  (Mạng LAN)
+  -  Nhắn tin:
+      + Nhắn nhóm
+      + Nhắn đơn
+  -  Gửi file
+  -  Tạo tài khoản (lưu dữ liệu tài khoản)
+  
+Chia việc:
+  -  UI: 
+      + Giao diện cơ bản
+  -  Server:
+      + Nhận thông tin từ client (nhận tin nhắn từ client)
+      + Xử lí thông tin (gửi tin nhắn cho client)
+      + Lưu trữ tài khoản mật khẩu
+  -  Client:
+      + Gửi thông tin cho server (gửi tin nhắn cho server)
+      + Nhận thông tin từ server  (nhận tin nhắn từ server)
+     
+Phân công:
+  Xem video: https://www.youtube.com/watch?v=3QiPPX-KeSc
+             https://www.youtube.com/watch?v=olYdb0DdGtM
+  -  Lân: Tìm hiểu Python, Socket và Threading
+  -  Công: Tìm hiểu Python, Socket và Threading
+  -  Vũ: Phát triển UI, tìm hiểu Socket và Threading
+
+
 Công
 
 
