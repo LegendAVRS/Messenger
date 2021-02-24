@@ -1,8 +1,10 @@
 from users import User
 import sqlite3
 
+path = __file__[:-23] + "password.db"
+
 def create_table():
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
     
     try:
@@ -16,11 +18,11 @@ def create_table():
     conn.commit()
     conn.close()
 
-def exist(person):
-    conn = sqlite3.connect("password.db")
+def exist(name):
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
-    c.execute("SELECT * FROM user WHERE EXISTS(SELECT 1 FROM user WHERE username = (?))", (person.username, ))
+    c.execute("SELECT * FROM user WHERE EXISTS(SELECT 1 FROM user WHERE username = (?))", (name, ))
 
     statement = True if c.fetchone() else False
 
@@ -29,11 +31,11 @@ def exist(person):
     return statement
 
 def insert(person):
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
     try:
-        if not exist(person):
+        if not exist(person.username):
             c.execute("INSERT INTO user VALUES (?, ?)", (person.username, person.password))
         # c.execute("INSERT INTO user VALUES (:username, :password)", {'username': person.username, 'password': person.password})
     except Exception as e:
@@ -44,7 +46,7 @@ def insert(person):
 
 
 def insert_many(List):
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
     try:
@@ -56,7 +58,7 @@ def insert_many(List):
     conn.close()
 
 def getall():
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
     c.execute("SELECT * FROM user")
@@ -68,7 +70,7 @@ def getall():
 
 
 def update_name(old_name, new_name):
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
     try:
@@ -80,12 +82,12 @@ def update_name(old_name, new_name):
     conn.close()
 
 
-def update_password(old_pass, new_pass):
-    conn = sqlite3.connect("password.db")
+def update_password(name, old_pass, new_pass):
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
     try:
-        c.execute("UPDATE user SET password = (?) WHERE password = (?)", (new_pass, old_pass))
+        c.execute("UPDATE user SET password = (?) WHERE password = (?) AND username = (?)", (new_pass, old_pass, name))
     except Exception as e:
         print("[EXCEPTION]", e)
 
@@ -94,7 +96,7 @@ def update_password(old_pass, new_pass):
 
 
 def show():
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
 
     c.execute("SELECT * FROM user ORDER BY username")
@@ -107,10 +109,10 @@ def show():
 
 
 def delete(person):
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
     try:
-        c.execute("DELETE from user WHERE username = (?) AND password = (?)", (person.username, person.passowrd))
+        c.execute("DELETE from user WHERE username = (?) AND password = (?)", (person.username, person.password))
     except Exception as e:
         print("[EXCEPTION]", e)
     
@@ -118,7 +120,7 @@ def delete(person):
     conn.close()
 
 def delete_all():
-    conn = sqlite3.connect("password.db")
+    conn = sqlite3.connect(path)
     c = conn.cursor()
     try:
         c.execute("DELETE from user")

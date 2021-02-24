@@ -1,15 +1,20 @@
 import info_database as db
 from users import User
 from threading import Thread
+import os
+import time
 
-def function():
-    x = int(input("Enter a number: "))
-    if x < 0:
-        print("Cannot insert negative numbers")
-        function()
-        return 0
-    return x
+dic = {}
 
+dic[1] = 'a'
+dic[2] = 'b'
+dic[3] = 'c'
+print(dic)
 
-Thread(target=function).start()
+dic.pop(4)
+print(dic)
 
+# try:
+#     dic.pop(4)
+# except Exception as e:
+#     print(e)

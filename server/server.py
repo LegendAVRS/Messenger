@@ -2,33 +2,43 @@ from socket import AF_INET, SOCK_STREAM, socket, gethostname, gethostbyname
 from threading import Thread
 import time
 import datetime
-import os # for opening cmd
+from collections import OrderedDict
+import os
 
 from users import User
 import info_database as db
 
-# opening cmd
+# MỞ CMD
 # os.system("start cmd")
 
+# CÁC LỆNH KẾT NỐI VỚI SERVER
+LOGIN = "/login"
+REGISTER = "/register"
+QUIT = "/quit"
+CLEAR = "/clear"
+USERNAME = "/usr"
+PASSWORD = "/pwd"
+LIST = "/list"
+ONLINE_LIST = "/online_list"
+MOVE = "/tp"
+HELP = "/help"
 
-"""
+OK = "ACCEPTED"
 
-    COMMANDS:
-        /SERVER
-        /list: list all usernames stored in the server
-        /online_list: list all usernames now are online
-        /tp <name/SERVER>: change to a person or SERVER
-        /location: show the location of the client
-
-"""
-
-# SERVER COMMUNICATION
-login_instruction = "[SERVER] Inset [/login <username> <password>]"
+# PHẢN HỒI TỪ SERVER
+login_instruction = "[SERVER] Insert [/login <username> <password>]"
 error = "[SERVER] Unvalid Command."
 username_error = "[SERVER] Username not valid."
 password_error = "[SERVER] Wrong password."
+account_used = "[SERVER] This account is being used"
+username_instruction = "[SERVER] Insert username with [/usr + <name>]"
+password_instruction = "[SERVER] Insert and confirm password with [/pwd <password> <password>]"
+username_exist = "[SERVER] Username has already existed"
+username_not_exist = "[SERVER] Username does not exist"
+wrong_confirmation = "[SERVER] Wrong password confirmation"
 
-# GLOBAL CONSTANTS
+"""========================================================================================================"""
+# HẰNG TOÀN CỤC
 PORT = 5050
 BUFSIZ = 512
 HOST = "localhost"
@@ -36,124 +46,416 @@ HOST = "localhost"
 ADDR = (HOST, PORT)
 MAX_CONNECTION = 15
 
-# GLOBAL VARIABLES
-client_connection = {} # store the address by the client's name
-client_info = {} # clients' usernmae and password
+
+"""========================================================================================================"""
+# BIẾN TOÀN CỤC
+client_info = {} # tài khoản và mật khẩu người dùng
+client_online = OrderedDict() # người dùng đang online
+
 
 """========================================================================================================"""
 
 SERVER = socket(AF_INET, SOCK_STREAM)
-SERVER.bind(ADDR) # set up new server
+SERVER.bind(ADDR) # tạo server 
 
 def get_messages(client):
     """
-    => Get messages from client
-    :param client: connection
-    :return: str if there is a message 
-           : False if there is not any message
+    => Lấy tin nhắn từ người dùng
+    param client: client của người dùng 
+    return: trả về tin nhắn nếu có ngược lại trả về False 
     """
 
     try:
         message = client.recv(BUFSIZ).decode()
         return message
     except Exception as e:
-        print("[EXCEPTION]", e)
+        print("[EXCEPTION in GET]", e)
         return False
 
 
+def send_messages(client, msg):
+    """
+    => Gửi tin ngắn tới người dùng
+    param client: client của người dùng
+    param msg   : tin nhắn muốn gửi
+    return: None
+    """
+    # client.send(bytes(msg, "utf8"))
+    try:
+        client.send(bytes(msg, "utf8"))
+    except Exception as e:
+        print("[EXCEPTION in SEND]", e)
 
-def client_chat(client):
+
+def client_login(client):
+    """
+    => Trang ĐĂNG NHẬP TÀI KHOẢN
+    param client: client của người dùng
+    return: trả về User nếu không vấn đề
+                   QUIT nếu thoát
+                   -1 nếu sinh lỗi
+    """
+
+    send_messages(client, "[SERVER] LOGIN PAGE")
+    time.sleep(0.1)
+
+    try:
+        while True:
+            send_messages(client, login_instruction)
+            msg = get_messages(client)
+
+            if msg == False: # không nhận được tin nhắn
+                return -1
+
+            if msg == QUIT: # thoát
+                return QUIT
+
+            temp = msg.split()
+
+            if len(temp) != 3:
+                send_messages(client, error)
+                continue
+
+            cmd, username, password = temp
+            if cmd != LOGIN:
+                send_messages(client, error)
+                continue
+
+            if username in client_online: # tài khoản đang được sử dụng
+                send_messages(client, account_used)
+                continue
+
+            if username not in client_info: # tài khoản không tồn tại
+                send_messages(client, username_error)
+                continue
+            
+            if password != client_info[username]: # sai mật khẩu
+                send_messages(client, password_error)
+                continue
+
+            return User(username, password)
+ 
+    except Exception as e:
+        print("[EXCEPTION in LOGIN]", e)
+        return -1
+
+
+def client_register(client):
+    """
+    => Trang ĐĂNG KÝ TÀI KHOẢN
+    param client: client của người dùng
+    return: trả về OK nếu không vấn đề
+                   QUIT nếu thoát
+                   -1 nếu sinh lỗi
+    """
+
+    send_messages(client, "[SERVER] REGISTER PAGE")
+    time.sleep(0.1)
+
+    username, password = None, None
+
+    # Đăng ký tài khoản
+    try:
+        while True:
+            send_messages(client, username_instruction)
+            
+            msg = get_messages(client)
+
+            if msg == False: # không nhận được tin nhắn
+                return -1
+
+            if msg == QUIT: # thoát 
+                return QUIT
+
+            temp = msg.split()
+
+            if len(temp) != 2:
+                send_messages(client, error)
+                continue
+
+            cmd, name = temp
+            
+            if cmd != USERNAME:
+                send_messages(client, error)
+                continue
+
+            if db.exist(name) == True: # nếu username đã tồn tại
+                send_messages(client, username_exist)
+                continue
+
+            username = name
+            break
+    except Exception as e:
+        print("[EXCEPTION in USERNAME]", e)
+        return -1
+
+
+    send_messages(client, CLEAR)
+    time.sleep(0.1)
+    send_messages(client, f"[SERVER] Your username is {username}")
+
+    # Đăng ký mật khẩu
+    try:
+        while True:
+            send_messages(client, password_instruction)
+
+            msg = get_messages(client)
+
+            if msg == False: # không nhận được tin nhắn
+                return -1
+
+            if msg == QUIT: # thoát
+                return QUIT
+
+            temp = msg.split()
+
+            if len(temp) != 3:
+                send_messages(client, error)
+                continue
+
+            cmd, pwd, confirm = temp
+
+            if cmd != PASSWORD:
+                send_messages(client, error)
+                continue
+            
+            if pwd != confirm: # nếu mật khẩu khác mật khẩu nhập lại
+                send_messages(client, wrong_confirmation)
+                continue
+
+            password = pwd
+            break
+    except Exception as e:
+        print("[EXCEPTION in PASSWORD]", e)
+        return -1
+           
+
+    # Đăng ký thành công
+
+    user = User(username, password) # tạo một User mới 
+    # db.insert(user) # lưu trữ vào database
+    print("[ANNOUNCEMENT] New user has been added") # Thông báo tài khoản mới đc đăng ký
+    print(user.username, user.password)
+    return OK
+
+
+def List(client):
+    """
+    => Gửi danh sách những tài khoản đã đăng ký
+    param client: client của người dùng
+    return: None
+    """
+
+    client_list = db.getall()
+    msg = f"[SERVER] There are {len(client_list)} account"
+    more = ":\n" if len(client_list) <= 1 else "s:\n"
+    msg = msg + more
+    for user in client_list:
+        msg = msg + "\t\t- " + str(user[0]) + "\n"
+    send_messages(client, msg)
+
+
+def Online_list(client):
+    """
+    => Gửi danh sách những người đang online
+    param client: client của người dùng
+    return: None
+    """
+
+    msg = f"[SERVER] There are {len(client_online)} online account"
+    more = ":\n" if len(client_online) <= 1 else "s:\n"
+    msg = msg + more
+    for username in client_online:
+        msg = msg + "\t\t- " + str(username) + "\n"
+    send_messages(client, msg)
+        
+
+def Help(client):
+    """
+    => Gửi danh sách câu lệnh được sử dụng với SERVER
+    param client: client của người dùng
+    return: None
+    """
+
+
+    msg = """
+        "/quit":                Quit to menu
+        "/clear":               Clear your screen
+        "/list"                 List all accounts
+        "/online_list"          List all online accounts
+        "/tp + <name>"          Move to chat room with <name>
+        "/help"                 List all command 
+    """
+    send_messages(client, msg)
+
+
+def client_chat(client, receiver):
     """
     => Process client messages
     :param client: connection
     :return: None
     """
 
-    sender = get_messages(client)
-    receiver = get_messages(client)
-    while True:
-        msg = get_messages
-        print(f"[{sender} -> {receiver}] {msg}")
-    client.close()
+    # sender = get_messages(client)
+    # receiver = get_messages(client)
+    # while True:
+    #     msg = get_messages
+    #     print(f"[{sender} -> {receiver}] {msg}")
+    # client.close()
 
 
-def client_login(client):
+def client_and_server(client, addr):
     """
-    => Client's login sites
-    :param client: connection
-    :return: None
+    => Giao tiếp giữa SERVER và người dùng
+    param client: client của người dùng
+    param addr  : địa chỉ của người dùng
+    return: None
     """
 
-    client.send(bytes("[SERVER] LOGIN PAGE", "utf8"))
+
+    send_messages(client, "[SERVER] Welcome back to VLC chat room!!!")
+    time.sleep(0.1)
+    send_messages(client, "[SERVER] Use '/login' to login or '/register' to register")
     time.sleep(0.1)
 
-    try:
-        while True:
-            client.send(bytes(login_instruction, "utf8"))
-            try:
-                msg = get_messages(client)
+    user = None
+    disconnect_msg = f"[DISCONNECTION] {addr} has disconnected"
 
-                if msg == False:
-                    client.send(bytes(error, "utf8"))
-                    continue
-
-                temp = msg.split()
-
-                if len(temp) == 1 or len(temp) == 2:
-                    client.send(bytes(error, "utf8"))
-                    continue
-
-                cmd, username, password = temp
-                if cmd != "/login":
-                    client.send(bytes(error, "utf8"))
-                    continue
-
-                if username not in client_info:
-                    client.send(bytes(username_error, "utf8"))
-                    continue
-                if password != client_info[username]:
-                    client.send(bytes(password_error, "utf8"))
-                    continue
-
-                client.send(bytes("[SERVER] Correct password.", "utf8"))
-                client.send(bytes(f"""
-                            ======================================
-                            \t\tWelcome back {username}
-                            ======================================""", "utf8"))
-
-                return username
-                
-            except Exception as e:
-                print("[EXCEPTION]", e)
-                return -1
-    except Exception as e:
-        print("[EXCEPTION]", e)
-        return -1
-
-
-def client_register(client):
-    return -1
-
-
-def client_and_server(client):
-    client.send(bytes("[SERVER] Welcome back to VLC chat room!!!", "utf8"))
-    client.send(bytes("[SERVER] Use '/login' to login or '/register' to register", "utf8"))
-    time.sleep(0.1)
-
+    # Đăng nhập hoặc Đăng ký tài khoản
     while True:
         msg = get_messages(client)
-        if msg == "/register":
-            command = client_register(client)
-            if command == "/quit":
-                continue
-            client.send(bytes("[SERVER] Please login again.", "utf8"))
-            time.sleep(0.3)
-        elif msg == "/login":
-            client_login(client)
+
+        if msg == False: # không nhận được tin nhắn
+            print(disconnect_msg) # thông báo đường truyền bị ngắt
+            return
+
+        if msg == REGISTER: # Phần ĐĂNG KÝ
+            send_messages(client, CLEAR)
+
+            command = client_register(client) # vào hàm ĐĂNG KÝ
+
+            if command == -1: # sinh lỗi
+                print(disconnect_msg) # thông báo đường truyền bị ngắt
+                return
+
+            if command == QUIT: # thoát
+                send_messages(client, CLEAR)
+                client_and_server(client, addr)
+                return
+
+            time.sleep(0.1)
+            send_messages(client, CLEAR)
+            time.sleep(0.1)
+            send_messages(client, "[SERVER] Please login again!!!\n") # Đăng nhập lại sau khi Đăng ký
+
+            client_and_server(client, addr)
+            return
 
 
+        elif msg == LOGIN: # Phần ĐĂNG NHẬP
+            send_messages(client, CLEAR)
+
+            temp_user = client_login(client) # vào hàm ĐĂNG NHẬP
+
+            if temp_user == QUIT: # thoát
+                send_messages(client, CLEAR)
+                client_and_server(client, addr)
+                return
+
+            if temp_user == -1: # sinh lỗi
+                print(disconnect_msg) # thông báo đường truyền bị ngắt
+                return
+
+            user = temp_user
+            break
+
+        else:
+            try:
+                send_messages(client, error)
+                send_messages(client, "[SERVER] Use '/login' to login or '/register' to register")
+            except Exception as e:
+                print("[EXCEPTION in CONNECTION]", e)
+                return -1
+
+
+    # Truy cập tài khoản thành công
+    send_messages(client, CLEAR)
+    time.sleep(0.1)
+    send_messages(client, "[SERVER] Correct password.")
+    time.sleep(0.1)
+    send_messages(client, CLEAR)
+    time.sleep(0.1)
+    send_messages(client, f"""
+                ==============================================
+                \t\tWelcome back {user.username}
+                ==============================================""")
+
+    client_online[user.username] = (client, addr)
+
+    # Truy cập chat
+    while True:
+        msg = get_messages(client)
+
+        if msg == False:
+            print(disconnect_msg + f" named {user.username}")
+            try:
+                client_online.pop(user.username)
+            except Exception as e:
+                print("[EXCEPTION in DISCONNECTION] Failed to disconnect")
+            return
+
+        if msg == QUIT: # thoát
+            print(f"[LOGOUT] {user.username} has logged out") 
+
+            send_messages(client, CLEAR)
+            time.sleep(0.1)
+            send_messages(client, "[SERVER] You have been logged out") 
+            time.sleep(0.1)
+            send_messages(client, CLEAR)
+            time.sleep(0.1)
+            try:
+                client_online.pop(user.username)
+            except Exception as e:
+                print("[EXCEPTION in DISCONNECTION] Failed to disconnect")
+            client_and_server(client, addr)
+            return
+
+        if msg == LIST: # liệt kê danh sách tài khoản
+            List(client)
+            continue
+
+        if msg == ONLINE_LIST: # liệt kê danh sách online
+            Online_list(client)
+            continue
+
+        if msg == HELP: # liệt kê danh sách lệnh hỗ trợ
+            Help(client)
+            continue
+
+        temp = msg.split()
+
+        if len(temp) != 2:
+            send_messages(client, error)
+            continue
         
+        cmd, receiver = temp
+
+        if cmd != MOVE: # kiểm tra lệnh MOVE
+            send_messages(client, error)
+            continue
+
+        if receiver == user.username:
+            send_messages(client, "[SERVER] This is your account.")
+            continue
+
+        if receiver not in client_info: # nếu tên tài khoản không nằm trong danh sách
+            send_messages(client, username_not_exist)
+            continue
+
+        client_chat(client, receiver)
+                
             
+        
 
 
 def connection():
@@ -168,7 +470,7 @@ def connection():
             client, addr = SERVER.accept()
             print(f"[CONNECTION] Connection from {addr}")
 
-            Thread(target=client_and_server, args=(client, )).start()
+            Thread(target=client_and_server, args=(client, addr)).start()
         except Exception as e:
             print("[EXCEPTION]", e)
             break
@@ -183,6 +485,7 @@ def get_info():
 
     account = dict(db.getall())
     return account
+
 
 if __name__ == "__main__":
     # get all username and password 

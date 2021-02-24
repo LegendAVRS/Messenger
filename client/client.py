@@ -14,6 +14,9 @@ client_socket.connect(ADDR)
 messages = []
 lock = Lock()
 
+# COMMAND
+CLEAR = "/clear"
+
 # condition to stop asking for messages
 stop = False
 
@@ -92,8 +95,13 @@ def update_messages():
             print(msg)
             if msg == "[SERVER] Correct password.":
                 stop = True
+                time.sleep(1.5)
+            elif msg == "[SERVER] You have been logged out":
+                stop = True
+                time.sleep(1.5)
+            elif msg == CLEAR:
                 os.system("cls")
-            if msg == "{quit}":
+            elif msg == "{quit}":
                 run = False
                 break
   
@@ -103,11 +111,10 @@ receive_thread.start()
 Thread(target = update_messages).start()
 
 while True:
-    if stop:
+    time.sleep(0.5)
+    if stop == True:
         stop = False
         time.sleep(2)
-        break
-    time.sleep(0.5)
     message = input("[COMMAND] ")
     send_messages(message)
     if message == "/logout":
