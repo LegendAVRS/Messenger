@@ -1,5 +1,16 @@
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import ttk
+
+# import client
+from threading import Thread
+
+correct_pass_msg = "[SERVER] Correct password."
+
+
+def raise_frame(frame):
+    frame.tkraise()
+
 
 """
     Entry thông thường không có placeholder
@@ -41,6 +52,30 @@ class PH_Entry(ttk.Entry):
     def foc_out(self, *args):
         if not self.get():
             self.put_placeholder()
+
+    def get_string(self):
+        if self["foreground"] == self.default_fg_color:
+            return self.get()
+        else:
+            return ""
+
+
+class Friend:
+    cur_user = None
+
+    def __init__(self, username, chat="None"):
+        self.username = username
+        self.lblUsername = tk.Label(ui.frmFriend, text=username)
+        self.chat = chat
+        self.lblUsername.bind("<Button-1>", self.ShowChat)
+
+        Friend.cur_user = self
+        self.lblUsername.pack()
+
+    def ShowChat(self, event):
+        ui.txtChat.delete(1.0, tk.END)
+        ui.txtChat.insert(tk.END, self.chat)
+        Friend.cur_user = self
 
 
 # Class cho UI chương trình chính
@@ -101,7 +136,7 @@ class UI:
         self.txtChat.tag_configure("left", justify="left")
         self.txtChat.tag_configure("bold", font=f"{self.txtChat_font} bold")
         self.txtChat.tag_configure("text_font", font=f"{self.txtChat_font}")
-        self.txtChat.config(state=tk.DISABLED)
+        # self.txtChat.config(state=tk.DISABLED)
 
         # # Khởi tạo button file
         # self.btnFile = ttk.Button(self.root, text="File")
@@ -130,9 +165,6 @@ class UI:
         # Khởi tạo button send
         self.btnSend = ttk.Button(self.root, text="Send", command=self.SendMessage)
         self.btnSend.grid(row=2, column=2, ipady=3, sticky=tk.NW)
-
-    #     # Mainloop
-    #     # self.root.mainloop()
 
     # Chèn string placholder khi txtSend không có focus
     def InsertPlaceHolder(self, event=None):
@@ -166,7 +198,11 @@ class UI:
             self.txtChat.insert("end", "\n")
 
         self.TextLenCount()
-        self.txtChat.config(state=tk.DISABLED)
+        Friend.cur_user.chat += "\n" + text
+        # self.txtChat.config(state=tk.DISABLED)
+
+    def UserAdd(self, username, chat):
+        Friend(username, chat)
 
 
 # Class cho UI phần đăng nhập tài khoản
@@ -175,10 +211,10 @@ class Signin_UI:
     entry_font = "Arial 12"
     btn_font = "Arial 11"
 
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Messenger")
-
+    def __init__(self, root, start_root):
+        # self.root.title("Messenger")
+        self.start_root = start_root
+        self.frame = tk.Frame(root)
         self.style = ttk.Style()
 
         # Khởi tạo style cho các widget
@@ -196,34 +232,68 @@ class Signin_UI:
         )
 
         # Khởi tạo label tiêu đề
-        self.lblTop = tk.Label(self.root, text="Sign in", font=self.lbl_font)
+        self.lblTop = tk.Label(self.frame, text="Sign in", font=self.lbl_font)
         self.lblTop.grid(row=0, column=0, pady=20)
 
         # Khởi tạo entry tên người dùng
         self.txtUsername = PH_Entry(
-            self.root, placeholder="Username", width=28, font=self.entry_font
+            self.frame, placeholder="Username", width=28, font=self.entry_font
         )
         self.txtUsername.grid(row=1, column=0, ipady=10, padx=20)
 
         # Khởi tạo entry mật khẩu
         self.txtPassword = PH_Entry(
-            self.root, placeholder="Password", width=28, font=self.entry_font
+            self.frame, placeholder="Password", width=28, font=self.entry_font
         )
         self.txtPassword.grid(row=2, column=0, ipady=10, padx=20, pady=20)
 
         # Khởi tạo button đăng nhập
         self.btnSignin = ttk.Button(
-            self.root, text="Sign in", style="btnSignin.TButton"
+            self.frame,
+            text="Sign in",
+            style="btnSignin.TButton",
+            command=self.CheckInput,
         )
         self.btnSignin.grid(row=3, column=0, ipadx=80, ipady=10, padx=20)
 
         # Khởi tạo button đăng ký
         self.btnSignup = ttk.Button(
-            self.root, text="Create an account", style="btnSignup.TButton"
+            self.frame,
+            text="Create an account",
+            style="btnSignup.TButton",
+            command=self.CloseUI,
         )
         self.btnSignup.grid(row=4, column=0, ipadx=65, ipady=10, pady=20)
 
+        # client.send_messages("/login")
+        # Thread(target=self.GetMessage).start()
         # self.root.mainloop()
+
+    # def GetMessage(self):
+    #     while True:
+    #         if client.logged_in == True:
+    #             self.root.destroy()
+
+    def SendMessage(self):
+        # client.send_messages(
+        #     f"/login {self.txtUsername.get()} {self.txtPassword.get()}"
+        # )
+        pass
+
+    def CloseUI(self):
+        raise_frame(self.start_root.signup_ui.frame)
+        self.start_root.root.geometry(
+            f"{self.start_root.signup_ui.frame.winfo_width()}x{self.start_root.signup_ui.frame.winfo_height()}"
+        )
+
+    def CheckInput(self):
+        username = self.txtUsername.get_string()
+        password = self.txtPassword.get_string()
+        if len(username) == 0 or len(password) == 0:
+            messagebox.showerror(
+                title="Error", message="Please fill in all the infomation"
+            )
+            return
 
 
 """
@@ -233,24 +303,62 @@ class Signin_UI:
 
 
 class Signup_UI(Signin_UI):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, root, start_root):
+        super().__init__(root, start_root)
         self.lblTop["text"] = "Sign up"
         self.txtPasswordAgain = PH_Entry(
-            self.root,
+            self.frame,
             width=28,
             placeholder="Type your password again",
             font=self.entry_font,
         )
+        self.btnSignup.config(command=self.CheckInput)
+        self.btnSignin.config(command=self.CloseUI)
         self.txtPasswordAgain.grid(row=3, column=0, ipady=10, padx=20, pady=(0, 20))
         self.btnSignup.grid(row=4, column=0, pady=0)
         self.btnSignin.grid(row=5, column=0, pady=20)
 
+    def CheckInput(self):
+        username = self.txtUsername.get_string()
+        password = self.txtPassword.get_string()
+        passwordagain = self.txtPasswordAgain.get_string()
+
+        if len(username) == 0 or len(password) == 0 or len(passwordagain) == 0:
+            messagebox.showerror(
+                title="Error", message="Please fill in all the infomation"
+            )
+            return
+
+        if password == passwordagain:
+            self.root.destroy()
+        else:
+            messagebox.showerror(title="Warning", message="Password not the same")
+
+    def CloseUI(self):
+        raise_frame(self.start_root.login_ui.frame)
+        self.start_root.root.geometry(
+            f"{self.start_root.login_ui.frame.winfo_width()}x{self.start_root.login_ui.frame.winfo_height()}"
+        )
+
+
+class Start_UI:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.login_ui = Signin_UI(self.root, self)
+        self.signup_ui = Signup_UI(self.root, self)
+        self.login_ui.frame.grid(row=0, column=0, sticky=tk.N)
+        self.signup_ui.frame.grid(row=0, column=0, sticky=tk.N)
+        self.root.update()
+        self.root.mainloop()
+
 
 if __name__ == "__main__":
-    # signup_ui = Signup_UI()
-    # signup_ui.root.mainloop()
-    # login_ui = Signin_UI()
-    # login_ui.root.mainloop()
-    ui = UI()
-    ui.root.mainloop()
+    start_ui = Start_UI()
+# login_ui = Signin_UI()
+# signup_ui = Signup_UI()
+# login_ui.frame.grid(row=0, column=0)
+# raise_frame(login_ui.frame)
+# login_ui.root.mainloop()
+
+# ui = UI()
+# ui.root.mainloop()
