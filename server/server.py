@@ -23,7 +23,9 @@ LIST = "/list"
 ONLINE_LIST = "/online_list"
 MOVE = "/tp"
 HELP = "/help"
+RE_LOCATION = "/re_location"
 AT_SERVER = "SERVER"
+
 
 OK = "ACCEPTED"
 
@@ -321,7 +323,7 @@ def client_chat(client, name, receiver):
 
         if receiver in client_online and client_location[receiver] == name:
             recv_conn, recv_addr = client_online[receiver]
-            send_messages(recv_conn, msg)
+            send_messages(recv_conn, f"![{name}] {msg}")
         
         # lưu trữ message
 
