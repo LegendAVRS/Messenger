@@ -15,6 +15,7 @@ import info_database as db
 LOGIN = "/login"
 REGISTER = "/register"
 QUIT = "/quit"
+LOGOUT = "/logout"
 CLEAR = "/clear"
 USERNAME = "/usr"
 PASSWORD = "/pwd"
@@ -22,6 +23,7 @@ LIST = "/list"
 ONLINE_LIST = "/online_list"
 MOVE = "/tp"
 HELP = "/help"
+AT_SERVER = "SERVER"
 
 OK = "ACCEPTED"
 
@@ -51,6 +53,7 @@ MAX_CONNECTION = 15
 # BIẾN TOÀN CỤC
 client_info = {} # tài khoản và mật khẩu người dùng
 client_online = OrderedDict() # người dùng đang online
+client_location = {} # đối tượng mà người dùng đang chat
 
 
 """========================================================================================================"""
@@ -289,19 +292,42 @@ def Help(client):
     send_messages(client, msg)
 
 
-def client_chat(client, receiver):
+def client_chat(client, name, receiver):
     """
     => Process client messages
     :param client: connection
     :return: None
     """
 
-    # sender = get_messages(client)
-    # receiver = get_messages(client)
-    # while True:
-    #     msg = get_messages
-    #     print(f"[{sender} -> {receiver}] {msg}")
-    # client.close()
+    welcome = f"""
+                {"=" * 40}
+                {f"Yourname = {name};".center(40)}
+                {f"Receiver = {receiver}".center(40)}
+                {"=" * 40}\n"""
+
+    send_messages(client, CLEAR)
+    time.sleep(0.1)
+    send_messages(client, welcome)
+    
+
+    while True:
+        msg = get_messages(client)
+
+        if msg == False:
+            return -1
+        
+        if msg == QUIT:
+            return QUIT
+
+        if receiver in client_online and client_location[receiver] == name:
+            recv_conn, recv_addr = client_online[receiver]
+            send_messages(recv_conn, msg)
+        
+        # lưu trữ message
+
+            
+            
+            
 
 
 def client_and_server(client, addr):
@@ -391,22 +417,23 @@ def client_and_server(client, addr):
                 ==============================================""")
 
     client_online[user.username] = (client, addr)
+    client_location[user.username] = AT_SERVER
 
     # Truy cập chat
     while True:
         msg = get_messages(client)
 
         if msg == False:
-            print(disconnect_msg + f" named {user.username}")
+            print(disconnect_msg + f" with name = {user.username}")
             try:
                 client_online.pop(user.username)
             except Exception as e:
                 print("[EXCEPTION in DISCONNECTION] Failed to disconnect")
             return
 
-        if msg == QUIT: # thoát
+        if msg == LOGOUT: # đăng xuất
             print(f"[LOGOUT] {user.username} has logged out") 
-
+            
             send_messages(client, CLEAR)
             time.sleep(0.1)
             send_messages(client, "[SERVER] You have been logged out") 
@@ -452,7 +479,17 @@ def client_and_server(client, addr):
             send_messages(client, username_not_exist)
             continue
 
-        client_chat(client, receiver)
+        # Chọn thành công đối tượng chat
+        client_location[user.username] = receiver
+        command = client_chat(client, user.username, receiver)
+
+        if command == -1: # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
+            print(disconnect_msg + f" with name = {user.username}")
+            return
+
+        if command == QUIT: # Trở lại menu chính hay nói cách khác là chạy lại vòng lặp
+            client_location[user.username] = AT_SERVER
+            continue
                 
             
         
@@ -490,6 +527,7 @@ def get_info():
 if __name__ == "__main__":
     # get all username and password 
     client_info = get_info()
+    client_info["SERVER"] = "NoNeedToAsk" # Tạo một tài khoản giả cho SERVER
     print(client_info)
 
     # open server with some connections

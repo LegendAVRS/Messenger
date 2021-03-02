@@ -1,7 +1,9 @@
 from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread, Lock
+from console import Console
 import time
 import os
+import UI
 
 HOST = "localhost"
 PORT = 5050
@@ -16,9 +18,12 @@ lock = Lock()
 
 # COMMAND
 CLEAR = "/clear"
+CONSOLE = "/console"
 
 # condition to stop asking for messages
 stop = False
+logged_in = False
+console = False
 
 
 def receive_messages():
@@ -51,8 +56,8 @@ def send_messages(msg):
     message = msg.encode("utf8")
     client_socket.send(message)
 
-    if msg == "/logout":
-        client_socket.close()
+    # if msg == "/logout":
+    #     client_socket.close()
 
 
 def get_messages():
@@ -81,8 +86,9 @@ def update_messages():
     => updates the local list of messages
     :return: None
     """
-
+    global console
     global stop
+    global logged_in
 
     msgs = []
     run = True
@@ -92,34 +98,54 @@ def update_messages():
         msgs.extend(new_messages) # add to local list of messages
 
         for msg in new_messages: # display new messages
-            print(msg)
+            if msg != CLEAR:
+                print(msg)    
+
             if msg == "[SERVER] Correct password.":
+                logged_in = True
                 stop = True
                 time.sleep(1.5)
+            
             elif msg == "[SERVER] You have been logged out":
+                logged_in = False
                 stop = True
                 time.sleep(1.5)
+            
             elif msg == CLEAR:
                 os.system("cls")
+            
             elif msg == "{quit}":
                 run = False
                 break
+
+            elif msg == CONSOLE:
+                console = True
+
   
   
 receive_thread = Thread(target = receive_messages)
 receive_thread.start()
 Thread(target = update_messages).start()
 
-while True:
-    time.sleep(0.5)
-    if stop == True:
-        stop = False
-        time.sleep(2)
-    message = input("[COMMAND] ")
-    send_messages(message)
-    if message == "/logout":
-        break
-# client_socket.close()
+def start_console():
+    gui = Console()
+
+def start():
+
+    global stop, console, logged_in
+
+    while True:
+        time.sleep(0.5)
+        if console == True:
+            start_console()
+            console = False
+        if stop == True:
+            stop = False
+            time.sleep(2)
+        message = input("[COMMAND] ")
+        send_messages(message)
+
+start()
 
 
 
