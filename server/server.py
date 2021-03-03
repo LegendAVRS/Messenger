@@ -7,6 +7,7 @@ import os
 
 from users import User
 import info_database as db
+import chat_store as store
 
 # MỞ CMD
 # os.system("start cmd")
@@ -239,8 +240,14 @@ def client_register(client):
 
     user = User(username, password) # tạo một User mới 
     # db.insert(user) # lưu trữ vào database
+
+    # Tạo khung lưu trữ mới
+    newpath = store.mainpath + username + ".db"
+    store.path = newpath
+    store.create_table()
+
     print("[ANNOUNCEMENT] New user has been added") # Thông báo tài khoản mới đc đăng ký
-    print(user.username, user.password)
+    print("=> ",user.username, user.password)
     return OK
 
 
@@ -296,9 +303,10 @@ def Help(client):
 
 def client_chat(client, name, receiver):
     """
-    => Process client messages
-    :param client: connection
-    :return: None
+    => Phần chat giữa name và receiver
+    param client: client của người dùng
+    param name: tên người dùng
+    param receiver: tên đối tượng chat
     """
 
     welcome = f"""
@@ -311,6 +319,11 @@ def client_chat(client, name, receiver):
     time.sleep(0.1)
     send_messages(client, welcome)
     
+    # Mở tất cả đoạn chat
+    newpath = store.mainpath + name + ".db"
+    store.path = newpath
+    text = store.show(receiver)
+    send_messages(client, text)
 
     while True:
         msg = get_messages(client)
@@ -325,8 +338,15 @@ def client_chat(client, name, receiver):
             recv_conn, recv_addr = client_online[receiver]
             send_messages(recv_conn, f"![{name}] {msg}")
         
-        # lưu trữ message
+        # lưu trữ message của bản thân
+        newpath = store.mainpath + name + ".db"
+        store.path = newpath
+        store.update_chat(receiver, f"[You] {msg}\n")
 
+        # Lưu trữ message của đối tượng chat
+        newpath = store.mainpath + receiver + ".db"
+        store.path = newpath
+        store.update_chat(name, f"[{name}] {msg}\n")
             
             
             
