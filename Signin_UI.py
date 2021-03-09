@@ -47,10 +47,7 @@ class Signin_UI:
 
         # Khởi tạo button đăng nhập
         self.btnSignin = ttk.Button(
-            self.frame,
-            text="Sign in",
-            style="btnSignin.TButton",
-            command=self.CheckInput,
+            self.frame, text="Sign in", style="btnSignin.TButton"
         )
         self.btnSignin.grid(row=3, column=0, ipadx=80, ipady=10, padx=20)
 
@@ -74,12 +71,3 @@ class Signin_UI:
         #     f"/login {self.txtUsername.get()} {self.txtPassword.get()}"
         # )
         pass
-
-    def CheckInput(self):
-        username = self.txtUsername.get_string()
-        password = self.txtPassword.get_string()
-        if len(username) == 0 or len(password) == 0:
-            messagebox.showerror(
-                title="Error", message="Please fill in all the infomation"
-            )
-            return

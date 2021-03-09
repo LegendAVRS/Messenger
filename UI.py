@@ -1,11 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
-
-# import client
 from threading import Thread
 
-correct_pass_msg = "[SERVER] Correct password."
 
 """
     Entry thông thường không có placeholder
@@ -16,20 +13,48 @@ correct_pass_msg = "[SERVER] Correct password."
 
 class Friend:
     cur_user = None
+    cnt = 0
 
-    def __init__(self, username, row):
+    def __init__(self, username, row, client, ui):
+        self.client = client
+        self.username = username
+        self.ui = ui
+
         ui.frmFriend.grid_columnconfigure(0, weight=1)
-        self.Frame = tk.Frame(ui.frmFriend, bg="grey", height=30)
-        self.lblUsername = tk.Label(self.Frame, text=username, bg="grey")
+        self.Frame = tk.Frame(
+            ui.frmFriend, bg=ui.frmFriend["bg"], height=30, cursor="hand2"
+        )
+        self.lblUsername = tk.Label(
+            self.Frame, text=username, bg=ui.frmFriend["bg"], fg="white"
+        )
+        self.Frame.bind("<Button-1>", self.SwitchFriend)
+        self.Frame.bind("<Enter>", self.FrameEnter)
+        self.Frame.bind("<Leave>", self.FrameLeave)
 
         self.Frame.grid_propagate(0)
 
         self.lblUsername.grid(row=0, column=0)
         self.Frame.grid(row=row, column=0, sticky="NSEW", pady=5)
 
+    def SwitchFriend(self, event):
+        self.ui.txtChat.delete(1.0, tk.END)
+        self.client.send_messages("/quit")
+        self.client.send_messages(f"/tp {self.username}")
+
+    def FrameEnter(self, event):
+        self.Frame["bg"] = "#232529"
+        self.lblUsername["bg"] = "#232529"
+
+    def FrameLeave(self, event):
+        self.Frame["bg"] = self.ui.frmFriend["bg"]
+        self.lblUsername["bg"] = self.ui.frmFriend["bg"]
+
 
 # Class cho UI chương trình chính
 class UI:
+    friend_list = []
+    row_index = 0
+
     txtChat_width = 80
     txtChat_height = 36
 
@@ -37,12 +62,17 @@ class UI:
 
     txtSend_font = "Arial 10"
     txtSend_length = 0
+
+    run = True
     # Khởi tạo UI
-    def __init__(self):
+    def __init__(self, client):
+        self.client = client
+
         # Root
         self.root = tk.Tk()
         self.root.title("Messenger")
         self.root.configure(background="blue")
+        self.root.protocol("WM_DELETE_WINDOW", self.OnClose)
 
         # Khởi tạo frame danh sách bạn bè
         self.frmFriend = tk.Frame(
@@ -116,6 +146,10 @@ class UI:
         self.root.grid_columnconfigure(2, weight=1)
         self.btnSend.grid(row=2, column=2, ipady=3, sticky="NSEW")
 
+        Thread(target=self.GetMessage).start()
+        Thread(target=self.SetFriend).start()
+        self.root.mainloop()
+
     # Chèn string placholder khi txtSend không có focus
     def InsertPlaceHolder(self, event=None):
         self.txtChat.focus_set()
@@ -140,24 +174,47 @@ class UI:
         self.txtSend.delete(1.0, tk.END)
         if self.txtSend_length == 0 or text == "\n":
             return
+        text = text.replace("\n", "")
+        # self.txtChat.config(state=tk.NORMAL)
+        # self.txtChat.insert("end", f"You: ", "bold")
+        # self.txtChat.insert("end", f"{text}", "text_font")
+        self.txtChat.insert("end", f"[You] ")
+        self.txtChat.insert("end", f"{text}\n")
+        # if event == None:
+        #     self.txtChat.insert("end", "\n")
 
-        self.txtChat.config(state=tk.NORMAL)
-        self.txtChat.insert("end", f"You: ", "bold")
-        self.txtChat.insert("end", f"{text}", "text_font")
-        if event == None:
-            self.txtChat.insert("end", "\n")
-
+        self.client.send_messages(text)
         self.TextLenCount()
-        Friend.cur_user.chat += "\n" + text
+
         # self.txtChat.config(state=tk.DISABLED)
 
-    def UserAdd(self, username, chat):
-        Friend(username, chat)
+    def GetMessage(self):
+        while self.run:
+            msg = self.client.receive_messages()
+            msg_split = msg.split(" ")
+            if msg_split[0] == "!list":
+                self.friend_list = msg_split[1:]
+                print(self.friend_list)
+            else:
+                self.txtChat.insert(tk.END, msg + "\n")
+
+    def SetFriend(self):
+        self.client.send_messages("/list")
+        while len(self.friend_list) == 0:
+            continue
+        for friend in self.friend_list:
+            self.AddFriend(friend)
+
+    def AddFriend(self, username):
+        Friend(username, self.row_index, self.client, self)
+        self.row_index += 1
+
+    def OnClose(self):
+        self.run = False
+        self.SendMessage("/quit")
+        self.root.destroy()
 
 
 if __name__ == "__main__":
     ui = UI()
-    ui.UserAdd("AVRS", 0)
-    ui.UserAdd("Sora", 1)
-    ui.UserAdd("Quantical", 2)
     ui.root.mainloop()
