@@ -55,6 +55,7 @@ def update_chat(name, msg):
 	c.execute("SELECT * FROM chat WHERE username = (?)", (name, ))
 	text = c.fetchone()[1] + msg
 	c.execute("UPDATE chat SET conversation = (?) WHERE username = (?)", (text, name))
+	
 	conn.commit()
 	conn.close()
 
@@ -69,7 +70,7 @@ def show(name):
 
 	c.execute("SELECT * FROM chat WHERE username = (?)", (name, ))
 	text = c.fetchone()[1]
-	print(text)
+	# print(text)
 
 	conn.commit()
 	conn.close()
@@ -88,7 +89,9 @@ def clear(name):
     conn.close()
 
 # path = mainpath + "sora.db"
-# show("bot")
+# msg = show("bot")
+# print(msg)
+
 
 # print("\n\n\n")
 

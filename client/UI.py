@@ -1,5 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
+from client import Client, CommandConsole
+from threading import Thread
+import time
 
 """
     Entry thông thường không có placeholder
@@ -247,10 +250,28 @@ class Signup_UI(Signin_UI):
         self.btnSignin.grid(row=5, column=0, pady=20)
 
 
+def test():
+    while True:
+        messages = myclient.UI_messages
+        myclient.UI_messages = []
+        for msg in messages:
+            print(msg)
+        
+def run():
+    print("First")
+    time.sleep(5)
+    print("Second")
+
 if __name__ == "__main__":
     # signup_ui = Signup_UI()
     # signup_ui.root.mainloop()
     # login_ui = Signin_UI()
     # login_ui.root.mainloop()
-    ui = UI()
-    ui.root.mainloop()
+    # ui = UI()
+    # ui.root.mainloop()
+
+    myclient = Client()
+    get_msg = Thread(target=test)
+    get_msg.start()
+    myclient.start()
+

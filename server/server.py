@@ -8,6 +8,9 @@ import os
 from users import User
 import info_database as db
 import chat_store as store
+import groupname_store as groupname
+import groupmem_store as groupmem
+import groupchat_store as groupchat
 
 # MỞ CMD
 # os.system("start cmd")
@@ -23,24 +26,47 @@ PASSWORD = "/pwd"
 LIST = "/list"
 ONLINE_LIST = "/online_list"
 MOVE = "/tp"
+JOIN = "/join"
 HELP = "/help"
+GROUP_LIST = "/group_list"
 RE_LOCATION = "/re_location"
 AT_SERVER = "SERVER"
 
+PARTY_CREATE = "/party_create"
+PARTY_INVITE = "/party_invite"
 
+
+
+"""========================================================================================================"""
+# CÁC NHÃN 
+AT_GROUP = "GROUP="
+AT_SERVER = "SERVER"
+CREATOR = "HOST"
+ADMIN = "ADMIN"
+MEMBER = "MEMBER"
 OK = "ACCEPTED"
+ERROR = "ERROR"
+CODE_NAME = "#NAME#"
 
 # PHẢN HỒI TỪ SERVER
-login_instruction = "[SERVER] Insert [/login <username> <password>]"
-error = "[SERVER] Unvalid Command."
-username_error = "[SERVER] Username not valid."
-password_error = "[SERVER] Wrong password."
-account_used = "[SERVER] This account is being used"
-username_instruction = "[SERVER] Insert username with [/usr + <name>]"
-password_instruction = "[SERVER] Insert and confirm password with [/pwd <password> <password>]"
-username_exist = "[SERVER] Username has already existed"
-username_not_exist = "[SERVER] Username does not exist"
-wrong_confirmation = "[SERVER] Wrong password confirmation"
+login_instruction = "Insert [/login <username> <password>]"
+error = "Invalid Command."
+username_error = "Username not valid."
+password_error = "Wrong password."
+account_used = "This account is being used"
+username_instruction = "Insert username with [/usr + <name>]"
+password_instruction = "Insert and confirm password with [/pwd <password> <password>]"
+username_exist = "Username has already existed"
+username_not_exist = "Username does not exist"
+wrong_confirmation = "Wrong password confirmation"
+
+party_create_instruction = "Insert [/party create <group name>]"
+party_invite_instruction = "Insert [/party invite <username>]"
+group_exist = "Group name has already existed"
+group_not_exist = "Group name does not exist"
+is_member = "This member is in your group"
+group_ok = "You have successfully created a group: "
+not_member = "You are not a member in this group"
 
 """========================================================================================================"""
 # HẰNG TOÀN CỤC
@@ -57,6 +83,7 @@ MAX_CONNECTION = 15
 client_info = {} # tài khoản và mật khẩu người dùng
 client_online = OrderedDict() # người dùng đang online
 client_location = {} # đối tượng mà người dùng đang chat
+group = {} # tên các nhóm gồm các thành viên của nhóm
 
 
 """========================================================================================================"""
@@ -89,6 +116,7 @@ def send_messages(client, msg):
     # client.send(bytes(msg, "utf8"))
     try:
         client.send(bytes(msg, "utf8"))
+        time.sleep(0.1)
     except Exception as e:
         print("[EXCEPTION in SEND]", e)
 
@@ -102,8 +130,7 @@ def client_login(client):
                    -1 nếu sinh lỗi
     """
 
-    send_messages(client, "[SERVER] LOGIN PAGE")
-    time.sleep(0.1)
+    send_messages(client, "LOGIN PAGE")
 
     try:
         while True:
@@ -123,6 +150,7 @@ def client_login(client):
                 continue
 
             cmd, username, password = temp
+
             if cmd != LOGIN:
                 send_messages(client, error)
                 continue
@@ -155,8 +183,7 @@ def client_register(client):
                    -1 nếu sinh lỗi
     """
 
-    send_messages(client, "[SERVER] REGISTER PAGE")
-    time.sleep(0.1)
+    send_messages(client, "REGISTER PAGE")
 
     username, password = None, None
 
@@ -197,8 +224,7 @@ def client_register(client):
 
 
     send_messages(client, CLEAR)
-    time.sleep(0.1)
-    send_messages(client, f"[SERVER] Your username is {username}")
+    send_messages(client, f"Your username is {username}")
 
     # Đăng ký mật khẩu
     try:
@@ -240,6 +266,7 @@ def client_register(client):
 
     user = User(username, password) # tạo một User mới 
     # db.insert(user) # lưu trữ vào database
+    # client_info[username] = password # Lưu trữ vào chương trình
 
     # Tạo khung lưu trữ mới
     newpath = store.mainpath + username + ".db"
@@ -259,9 +286,12 @@ def List(client):
     """
 
     client_list = db.getall()
-    msg = f"[SERVER] There are {len(client_list)} account"
-    more = ":\n" if len(client_list) <= 1 else "s:\n"
-    msg = msg + more
+
+    msg = ""
+    if len(client_list) <= 1:
+        msg = f"There is {len(client_list)} account\n"
+    else:
+        msg = f"There are {len(client_list)} accounts\n"
     for user in client_list:
         msg = msg + "\t\t- " + str(user[0]) + "\n"
     send_messages(client, msg)
@@ -274,9 +304,11 @@ def Online_list(client):
     return: None
     """
 
-    msg = f"[SERVER] There are {len(client_online)} online account"
-    more = ":\n" if len(client_online) <= 1 else "s:\n"
-    msg = msg + more
+    msg = ""
+    if len(client_online) <= 1:
+        msg = f"There is {len(client_online)} account\n"
+    else:
+        msg = f"There are {len(client_online)} accounts\n"
     for username in client_online:
         msg = msg + "\t\t- " + str(username) + "\n"
     send_messages(client, msg)
@@ -301,6 +333,52 @@ def Help(client):
     send_messages(client, msg)
 
 
+def Group_list(client):
+    """
+    => Gửi danh sách những nhóm đã tạo
+    param client: client của người dùng
+    return: None
+    """
+
+    msg = ""
+    if len(group) <= 1:
+        msg = f"There is {len(group)} account\n"
+    else:
+        msg = f"There are {len(group)} accounts\n"
+    for group_name in group:
+        msg = msg + '\t\t' + str(group_name) + '\n'
+    send_messages(client, msg)
+
+
+def New_Group(client, name, username):
+    """
+    => Tạo một nhóm mới với tên là name và người tạo là ADMIN
+    param name: tên nhóm
+    param username: tên người tạo
+    param client: client của người tạo
+    return: None
+    """
+
+    send_messages(client, group_ok + f"== {name} ==")
+    group[name] = [(username, ADMIN)]
+
+    first_msg = F"[FIRST MESSAGE] {username} has created the group\n"
+
+    # Tạo phần chat mới 
+    groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
+    groupchat.create_table()
+    groupchat.update_chat(first_msg)
+
+    # Thêm thành viên là người tạo
+    groupmem.path = groupmem.mainpath + name + "_mem" + ".db"
+    groupmem.create_table()
+    groupmem.insert(username, CREATOR)
+
+    # Thêm nhóm vào danh sách
+    groupname.create_table()
+    groupname.insert(name)
+
+
 def client_chat(client, name, receiver):
     """
     => Phần chat giữa name và receiver
@@ -316,15 +394,16 @@ def client_chat(client, name, receiver):
                 {"=" * 40}\n"""
 
     send_messages(client, CLEAR)
-    time.sleep(0.1)
     send_messages(client, welcome)
     
     # Mở tất cả đoạn chat
     newpath = store.mainpath + name + ".db"
     store.path = newpath
     text = store.show(receiver)
+    text = "?" + text
     send_messages(client, text)
 
+    # Phần chat của người dùng
     while True:
         msg = get_messages(client)
 
@@ -347,9 +426,119 @@ def client_chat(client, name, receiver):
         newpath = store.mainpath + receiver + ".db"
         store.path = newpath
         store.update_chat(name, f"[{name}] {msg}\n")
-            
-            
-            
+        
+
+def is_in_group(username, name):
+    """
+    => Kiểm tra nếu username ở trong nhóm tên name
+    param username: tên người dùng
+    param name: tên nhóm
+    return: True (nếu username đã tồn tại trong nhóm)
+          : No (nếu username chưa tồn tại trong nhóm)
+    """
+
+    for member in group[name]:
+        if member[0] == username:
+            return True
+
+    return False
+
+
+def role(username, name):
+    """
+    => Xem xét chức danh của người dùng là gì
+    param username: tên người dùng
+    param name: tên nhóm
+    return: "MEMBER" (thành viên)
+          : "ADMIN" (quản trị viên)
+    """
+
+    for member in group[name]:
+        if member[0] == username:
+            return member[1]
+    
+    return -1
+
+
+def group_chat(client, username, name):
+    """
+    => Chat nhóm
+    param client: client của người dùng
+    param username: tên người dùng
+    param name: tên nhóm
+    return: None 
+    """
+
+    welcome = f"""
+                {"=" * 40}
+                {f"Yourname = {name};".center(40)}
+                {f"Group = {name}".center(40)}
+                {"=" * 40}\n"""
+    send_messages(client, CLEAR)
+    send_messages(client, welcome)
+
+    # Mở đoạn chat
+    groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
+    message = groupchat.show()
+    for member in group[name]:
+        if member[0] in client_online and client_location[member[0]] == AT_GROUP + name:
+            recv_conn, recv_addr = client_online[member[0]]
+            send_messages(recv_conn, message)
+
+
+    # Phần chat của người dùng
+    while True:
+        msg = get_messages(client)
+
+        if msg == False: # Không nhận được tin nhắn
+            return -1
+
+        if msg == QUIT:
+            return QUIT
+
+        temp = msg.split()
+        msg = f"[{username}] {msg}\n"
+        changed = False
+
+        if len(temp) == 2 and temp[0][0] == '/':  
+            cmd, invited_member = temp
+            if cmd != PARTY_INVITE:
+                send_messages(client, ERROR)
+                continue
+
+            if invited_member not in client_info: # Không tồn tại người dùng
+                send_messages(client, ERROR)
+                continue
+
+            if role(username, name) == MEMBER: # Member không được thêm thành viên
+                send_messages(client, ERROR)
+                continue
+
+            if is_in_group(invited_member, name): # Nếu thành viên đã tồn tại trong nhóm
+                send_messages(client, ERROR)
+                continue
+
+            # Lưu trữ thành viên
+            groupmem.path = groupmem.mainpath + name + "_mem" + ".db"
+            groupmem.insert(invited_member)
+
+            # Thông báo thành viên mới
+            msg = f"[ANNOUNCEMENT] {name} has added {invited_member} to group\n"
+            changed = True
+            group[name].append((invited_member, MEMBER))
+
+        # Gửi trực tiếp đến những người đang online
+        for member in group[name]:
+            if member[0] == username and changed == False:
+                continue
+            if member[0] in client_online and client_location[member[0]] == AT_GROUP + name:
+                recv_conn, recv_addr = client_online[member[0]]
+                send_messages(recv_conn, msg)
+
+        # Lưu trữ vào đoạn chat chung
+        groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
+        groupchat.update_chat(msg)
+    
 
 
 def client_and_server(client, addr):
@@ -360,11 +549,9 @@ def client_and_server(client, addr):
     return: None
     """
 
-
-    send_messages(client, "[SERVER] Welcome back to VLC chat room!!!")
-    time.sleep(0.1)
-    send_messages(client, "[SERVER] Use '/login' to login or '/register' to register")
-    time.sleep(0.1)
+    welcome_msg = "Welcome back to VLC chat room!!!\n"
+    welcome_msg = welcome_msg + "\tUse '/login' to login or '/register' to register\n"
+    send_messages(client, welcome_msg)
 
     user = None
     disconnect_msg = f"[DISCONNECTION] {addr} has disconnected"
@@ -391,10 +578,8 @@ def client_and_server(client, addr):
                 client_and_server(client, addr)
                 return
 
-            time.sleep(0.1)
             send_messages(client, CLEAR)
-            time.sleep(0.1)
-            send_messages(client, "[SERVER] Please login again!!!\n") # Đăng nhập lại sau khi Đăng ký
+            send_messages(client, "Please login again!!!\n") # Đăng nhập lại sau khi Đăng ký
 
             client_and_server(client, addr)
             return
@@ -420,7 +605,7 @@ def client_and_server(client, addr):
         else:
             try:
                 send_messages(client, error)
-                send_messages(client, "[SERVER] Use '/login' to login or '/register' to register")
+                send_messages(client, "Use '/login' to login or '/register' to register")
             except Exception as e:
                 print("[EXCEPTION in CONNECTION]", e)
                 return -1
@@ -428,15 +613,14 @@ def client_and_server(client, addr):
 
     # Truy cập tài khoản thành công
     send_messages(client, CLEAR)
-    time.sleep(0.1)
-    send_messages(client, "[SERVER] Correct password.")
-    time.sleep(0.1)
+    send_messages(client, "Correct password.")
+    send_messages(client, CODE_NAME + user.username) # Gửi đi tên tài khoản
     send_messages(client, CLEAR)
-    time.sleep(0.1)
-    send_messages(client, f"""
+    welcomeback_msg = f"""
                 ==============================================
                 \t\tWelcome back {user.username}
-                ==============================================""")
+                =============================================="""
+    send_messages(client, welcomeback_msg)
 
     client_online[user.username] = (client, addr)
     client_location[user.username] = AT_SERVER
@@ -457,11 +641,9 @@ def client_and_server(client, addr):
             print(f"[LOGOUT] {user.username} has logged out") 
             
             send_messages(client, CLEAR)
-            time.sleep(0.1)
-            send_messages(client, "[SERVER] You have been logged out") 
-            time.sleep(0.1)
+            send_messages(client, "You have been logged out") 
             send_messages(client, CLEAR)
-            time.sleep(0.1)
+            send_messages(client, CODE_NAME + "You")
             try:
                 client_online.pop(user.username)
             except Exception as e:
@@ -481,39 +663,88 @@ def client_and_server(client, addr):
             Help(client)
             continue
 
+        if msg == GROUP_LIST:
+            Group_list(client)
+            continue
+
         temp = msg.split()
 
-        if len(temp) != 2:
-            send_messages(client, error)
-            continue
-        
-        cmd, receiver = temp
+        if len(temp) == 2:
+            cmd, receiver = temp
 
-        if cmd != MOVE: # kiểm tra lệnh MOVE
-            send_messages(client, error)
-            continue
+            if cmd == MOVE: # kiểm tra lệnh MOVE
+                if receiver == user.username:
+                    send_messages(client, "This is your account.")
+                    continue
 
-        if receiver == user.username:
-            send_messages(client, "[SERVER] This is your account.")
-            continue
+                if receiver not in client_info: # nếu tên tài khoản không nằm trong danh sách
+                    send_messages(client, username_not_exist)
+                    continue
 
-        if receiver not in client_info: # nếu tên tài khoản không nằm trong danh sách
-            send_messages(client, username_not_exist)
-            continue
+                # Chọn thành công đối tượng chat
+                client_location[user.username] = receiver
+                command = client_chat(client, user.username, receiver)
 
-        # Chọn thành công đối tượng chat
-        client_location[user.username] = receiver
-        command = client_chat(client, user.username, receiver)
+                if command == -1: # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
+                    print(disconnect_msg + f" with name = {user.username}")
+                    try:
+                        client_online.pop(user.username)
+                    except Exception as e:
+                        print("[EXCEPTION in DISCONNECTION] Failed to disconnect")
+                    return
 
-        if command == -1: # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
-            print(disconnect_msg + f" with name = {user.username}")
-            return
-
-        if command == QUIT: # Trở lại menu chính hay nói cách khác là chạy lại vòng lặp
-            client_location[user.username] = AT_SERVER
-            continue
+                if command == QUIT: # Trở lại menu chính hay nói cách khác là chạy lại vòng lặp
+                    client_location[user.username] = AT_SERVER
+                    send_messages(client, CLEAR)
+                    send_messages(client, welcomeback_msg)
+                    continue
                 
-            
+            elif cmd == PARTY_CREATE:
+                group_name = receiver
+                if group_name in group:
+                    send_messages(client, group_exist)
+                    continue
+                New_Group(client, group_name, user.username)
+                continue
+
+            elif cmd == JOIN:
+                group_name = receiver
+
+                if group_name not in group:
+                    send_messages(client, group_not_exist)
+                    continue
+
+                if is_in_group(user.username, group_name) == False: # Nếu thành viên không ở trong nhóm
+                    send_messages(client, not_member)
+                    continue
+
+                client_location[user.username] = AT_GROUP + group_name
+                command = group_chat(client, user.username, group_name)
+
+                if command == -1: # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
+                    print(disconnect_msg + f" with name = {user.username}")
+                    try:
+                        client_online.pop(user.username)
+                    except Exception as e:
+                        print("[EXCEPTION in DISCONNECTION] Failed to disconnect")
+                    return
+
+                if command == QUIT: # Trở lại menu chính hay nói cách khác là chạy lại vòng lặp
+                    client_location[user.username] = AT_SERVER
+                    send_messages(client, CLEAR)
+                    send_messages(client, welcomeback_msg)
+                    continue
+
+
+            else:
+                send_messages(client, error)
+                continue
+
+
+        send_messages(client, error)
+
+
+
         
 
 
@@ -538,19 +769,38 @@ def connection():
 
 def get_info():
     """
-    => get client's username and password
-    :return: a dictionary stores the username and password
+    => Lấy thông tin tài khoản mật khẩu của người dùng và tên các nhóm
+    :return: None
     """
 
-    account = dict(db.getall())
-    return account
+    global client_info, group
+
+    client_info = dict(db.getall())
+    client_info["SERVER"] = "NoNeedToAsk"
+    client_info["You"] = "Init###"
+
+    names = groupname.show()
+    for name in names:
+        groupmem.path = groupmem.mainpath + name[0] + "_mem" + ".db"
+        group[name[0]] = groupmem.show()
+
+
+def info_display():
+    print("CLIENT INFO:")
+    for acc in client_info:
+        s = f"\t* username: {acc}; password: {client_info[acc]}"
+        print(s)
+    
+    print("GROUP INFO:")
+    for name in group:
+        print(f"\t* {name}:")
+        for member in group[name]:
+            print(f"\t\t- {member[0]} -> {member[1]}")
 
 
 if __name__ == "__main__":
-    # get all username and password 
-    client_info = get_info()
-    client_info["SERVER"] = "NoNeedToAsk" # Tạo một tài khoản giả cho SERVER
-    print(client_info)
+    get_info()
+    info_display()
 
     # open server with some connections
     print("[LISTENING] Server is starting...")

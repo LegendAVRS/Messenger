@@ -2,11 +2,16 @@ from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread, Lock
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 import time
+import sys
 import os
-import UI
+# import UI
 
 class CommandConsole():
+
+    this_name = "You"
+
     txtChat_width = 80
     txtChat_height = 36
 
@@ -124,11 +129,14 @@ class CommandConsole():
         if self.txtSend_length == 0 or text == "\n":
             return
 
-        self.txtChat.config(state=tk.NORMAL)
-        self.txtChat.insert("end", f"[You]: ", "bold")
-        self.txtChat.insert("end", f"{text}", "text_font")
-        
         send_messages(text[:-2])
+
+        if len(text) > len("/party_invite") and text[:len("/party_invite")] == "/party_invite":
+            return
+
+        self.txtChat.config(state=tk.NORMAL)
+        self.txtChat.insert("end", f"[{self.this_name}]: ", "bold")
+        self.txtChat.insert("end", f"{text}", "text_font")
 
         if event == None:
             self.txtChat.insert("end", "\n")
@@ -136,68 +144,35 @@ class CommandConsole():
         self.TextLenCount()
         self.txtChat.config(state=tk.DISABLED)
 
-    def InsertMessage(self, msg, type, name=None): 
-        # type = 1: gửi SERVER
-        # type = 2: gửi có người nhắn
-
-        sender = "[COMMAND] " if type == 1 else f"{name} "
-
+    def Display(self, sender, msg):
         self.txtChat['state'] = tk.NORMAL
         self.txtChat.insert("end", sender, "bold")
         self.txtChat.insert("end", msg + '\n', "text_font")
         self.txtChat['state'] = tk.DISABLED
+    
+    def InsertMessage(self, msg, type, name=None): 
+        # type = 1: gửi SERVER
+        # type = 2: gửi có người nhắn
+        # type = 3: chuỗi tin nhắn được in ra
+
+        if type == 3:
+            messages = msg.split('\n')
+            for message in messages:
+                op = 0
+                ed = message.find(']')
+                sender = message[op : ed + 1]
+                message = message[ed + 2:]
+                self.Display(sender, message)
+            return
+
+        sender = "[SERVER] " if type == 1 else f"{name} "
+
+        self.Display(sender, msg)
 
     def Clear(self):
         self.txtChat['state'] = tk.NORMAL
         self.txtChat.delete(1.0, tk.END)
         self.txtChat['state'] = tk.DISABLED
-
-
-
-cmdConsole = CommandConsole()
-
-
-
-
-HOST = "localhost"
-PORT = 5050
-ADDR = (HOST, PORT)
-BUFSIZ = 512
-
-
-client_socket = socket(AF_INET, SOCK_STREAM)
-client_socket.connect(ADDR)
-messages = []
-lock = Lock()
-
-# COMMAND
-CLEAR = "/clear"
-CONSOLE = "/console"
-
-# condition to stop asking for messages
-stop = False
-logged_in = False
-console = False
-
-
-def receive_messages():
-    """
-    => receive messages from server
-    :return: None
-    """
-
-    global messages
-    while True:
-        try:
-            msg = client_socket.recv(BUFSIZ).decode()
-
-            # make sure memory is safe to access
-            lock.acquire()
-            messages.append(msg)
-            lock.release()
-        except Exception as e:
-            print("[EXCEPTION] ", e)
-            break
 
 
 def send_messages(msg):
@@ -214,94 +189,198 @@ def send_messages(msg):
     #     client_socket.close()
 
 
-def get_messages():
-    """
-    => returns a list of str messages
-    :return: list[str]
-    """
+HOST = "localhost"
+PORT = 5050
+ADDR = (HOST, PORT)
+BUFSIZ = 512
 
-    global messages
-    messages_copy = messages[:]
 
-    # make sure memory if safe to access
-    lock.acquire()
+client_socket = socket(AF_INET, SOCK_STREAM)
+client_socket.connect(ADDR)
+lock = Lock()
+
+
+class Client():
+    # COMMAND
+    CLEAR = "/clear"
+    CONSOLE = "/console"
+
+    # MARK
+    ERROR = "ERROR"
+    CODE_NAME = "#NAME#"
+
+    # SERVER'S COMMAND
+    password_instruction = "[SERVER] Insert and confirm password with [/pwd <password> <password>]"
+
+    # Boolean 
+    stop = False
+    logged_in = False
+    console = False
+    close = False
+    pwd_confirm = False
+
+    # Variables
     messages = []
-    lock.release()
+    UI_messages = []
 
-    return messages_copy
+    this_name = "You"
 
+    cmdConsole = CommandConsole()
 
-def disconnect():
-    send_messages("{quit}")
+    def __init__(self):
+        receive_thread = Thread(target = self.receive_messages)
+        receive_thread.start()
+        update_thread = Thread(target = self.update_messages)
+        update_thread.start()
 
+    def receive_messages(self):
+        """
+        => receive messages from server
+        :return: None
+        """
 
-def update_messages():
-    """
-    => updates the local list of messages
-    :return: None
-    """
-    global console
-    global stop
-    global logged_in
-
-    msgs = []
-    run = True
-    while run:
-        time.sleep(0.1) # update every 1/10 of a second
-        new_messages = get_messages() # get any new messages from client
-        msgs.extend(new_messages) # add to local list of messages
-
-        for msg in new_messages: # display new messages
-            print(msg)
-            type = 1
-
-            if msg[0] == "!":
-                type = 2
-
-            if msg != CLEAR:
-                if type == 1:
-                    cmdConsole.InsertMessage(msg, 1)
-                else:
-                    msg = msg[1:]
-                    name = msg.split()[0]
-                    msg = msg[len(name) + 1:] + '\n'
-                    cmdConsole.InsertMessage(msg, 2, name)
+        while True:
+            if self.close == True:
+                return
+            try:
+                msg = client_socket.recv(BUFSIZ).decode()
+                # make sure memory is safe to access
+                lock.acquire()
+                self.messages.append(msg)
+                lock.release()
+            except Exception as e:
+                print("[EXCEPTION in RECEIVE] ", e)
+                return
 
 
-            if msg == "[SERVER] Correct password.":
-                logged_in = True
-                stop = True
-                time.sleep(1.5)
-            
-            elif msg == "[SERVER] You have been logged out":
-                logged_in = False
-                stop = True
-                time.sleep(1.5)
-            
-            elif msg == CLEAR:
-                cmdConsole.Clear()
-            
-            elif msg == "{quit}":
-                run = False
-                break
+    def send_messages(self, msg):
+        """
+        => send messages to server
+        :param msg: str
+        :return: None
+        """
 
-            elif msg == CONSOLE:
-                console = True
+        message = msg.encode("utf8")
+        client_socket.send(message)
 
-  
-  
-receive_thread = Thread(target = receive_messages)
-receive_thread.start()
-Thread(target = update_messages).start()
+        # if msg == "/logout":
+        #     client_socket.close()
 
 
-def start():
+    def get_messages(self):
+        """
+        => returns a list of str messages
+        :return: list[str]
+        """
 
-    global stop, console, logged_in
+        messages_copy = self.messages[:]
 
-    cmdConsole.root.mainloop()
+        # make sure memory if safe to access
+        lock.acquire()
+        self.messages = []
+        lock.release()
 
-start()
+        return messages_copy
+
+
+    def disconnect(self):
+        send_messages("{quit}")
+
+
+    def update_messages(self):
+        """
+        => updates the local list of messages
+        :return: None
+        """
+
+        msgs = []
+        run = True
+        while run:
+
+            if self.close == True:
+                return
+
+            time.sleep(0.1) # update every 1/10 of a second
+            new_messages = self.get_messages() # get any new messages from client
+            msgs.extend(new_messages) # add to local list of messages
+
+            for msg in new_messages: # display new messages
+                # print(msg)
+
+                if self.close == True:
+                    return
+
+                self.UI_messages.append(msg)
+
+                if msg == self.ERROR:
+                    messagebox.showwarning(title="Warning", message=self.ERROR)
+                    continue
+
+                if len(msg) > 6 and msg[:6] == self.CODE_NAME:
+                    self.this_name = msg[6:] 
+                    self.cmdConsole.this_name = self.this_name
+                    continue
+
+                type = 1
+
+                if msg[0] == "!": # type with name
+                    type = 2
+
+                elif msg[0] == "?": # type with no name 
+                    type = 3
+
+                if msg != self.CLEAR:
+                    if type == 1:
+                        self.cmdConsole.InsertMessage(msg, 1)
+                    elif type == 2:
+                        msg = msg[1:]
+                        name = msg.split()[0]
+                        msg = msg[len(name) + 1:] + '\n'
+                        self.cmdConsole.InsertMessage(msg, 2, name)
+
+                    elif type == 3:
+                        msg = msg[1:]
+                        self.cmdConsole.InsertMessage(msg, 3)
+
+
+                if msg == "Correct password.":
+                    self.logged_in = True
+                    self.stop = True
+                    time.sleep(1.5)
+                
+                elif msg == "You have been logged out":
+                    self.logged_in = False
+                    self.stop = True
+                    time.sleep(1.5)
+                
+                elif msg == self.CLEAR:
+                    self.cmdConsole.Clear()
+                
+                elif msg == "{quit}":
+                    run = False
+                    break
+
+                elif msg == self.CONSOLE:
+                    self.console = True
+                
+                elif msg == self.password_instruction:
+                    self.pwd_confirm = True
+
+
+    def on_closing(self):
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            self.close = True
+            client_socket.close()
+            self.cmdConsole.root.destroy()
+
+    def start(self):
+
+        self.cmdConsole.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.cmdConsole.root.mainloop()
+
+
+
+# start()
 
 
 
