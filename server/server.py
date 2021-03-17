@@ -29,11 +29,11 @@ MOVE = "/tp"
 JOIN = "/join"
 HELP = "/help"
 GROUP_LIST = "/group_list"
-RE_LOCATION = "/re_location"
-AT_SERVER = "SERVER"
 
 PARTY_CREATE = "/party_create"
 PARTY_INVITE = "/party_invite"
+
+RE_LOCATION = "/re_location"
 
 
 
@@ -321,14 +321,16 @@ def Help(client):
     return: None
     """
 
-
     msg = """
-        "/quit":                Quit to menu
-        "/clear":               Clear your screen
-        "/list"                 List all accounts
-        "/online_list"          List all online accounts
-        "/tp + <name>"          Move to chat room with <name>
-        "/help"                 List all command 
+        "/quit":                  Quit to menu
+        "/logout"                 Logout
+        "/list"                   List all accounts
+        "/online_list"            List all online accounts
+        "/group_list"             List all group
+        "/tp + <name>"            Move to chat room with <name>
+        "/help"                   List all command
+        "/join + <name>"          Join a group
+        "/party_create + <name>"  Create a new group and you are the host    
     """
     send_messages(client, msg)
 
@@ -342,9 +344,9 @@ def Group_list(client):
 
     msg = ""
     if len(group) <= 1:
-        msg = f"There is {len(group)} account\n"
+        msg = f"There is {len(group)} group\n"
     else:
-        msg = f"There are {len(group)} accounts\n"
+        msg = f"There are {len(group)} groups\n"
     for group_name in group:
         msg = msg + '\t\t' + str(group_name) + '\n'
     send_messages(client, msg)
@@ -480,6 +482,7 @@ def group_chat(client, username, name):
     # Mở đoạn chat
     groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
     message = groupchat.show()
+    message = '?' + message
     for member in group[name]:
         if member[0] in client_online and client_location[member[0]] == AT_GROUP + name:
             recv_conn, recv_addr = client_online[member[0]]
@@ -533,7 +536,7 @@ def group_chat(client, username, name):
                 continue
             if member[0] in client_online and client_location[member[0]] == AT_GROUP + name:
                 recv_conn, recv_addr = client_online[member[0]]
-                send_messages(recv_conn, msg)
+                send_messages(recv_conn, '!' + msg)
 
         # Lưu trữ vào đoạn chat chung
         groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
@@ -614,8 +617,8 @@ def client_and_server(client, addr):
     # Truy cập tài khoản thành công
     send_messages(client, CLEAR)
     send_messages(client, "Correct password.")
-    send_messages(client, CODE_NAME + user.username) # Gửi đi tên tài khoản
     send_messages(client, CLEAR)
+    send_messages(client, CODE_NAME + user.username) # Gửi đi tên tài khoản
     welcomeback_msg = f"""
                 ==============================================
                 \t\tWelcome back {user.username}

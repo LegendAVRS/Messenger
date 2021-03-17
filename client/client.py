@@ -125,14 +125,17 @@ class CommandConsole():
     # Gửi tin nhắn
     def SendMessage(self, event=None):
         text = self.txtSend.get(1.0, tk.END)
+        text = text.strip()
         self.txtSend.delete(1.0, tk.END)
         if self.txtSend_length == 0 or text == "\n":
             return
 
-        send_messages(text[:-2])
+        send_messages(text)
 
         if len(text) > len("/party_invite") and text[:len("/party_invite")] == "/party_invite":
             return
+
+        text = text + '\n'
 
         self.txtChat.config(state=tk.NORMAL)
         self.txtChat.insert("end", f"[{self.this_name}]: ", "bold")
