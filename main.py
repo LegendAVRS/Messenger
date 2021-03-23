@@ -10,4 +10,3 @@ new_client = Client()
 start_ui = Start_UI(new_client)
 if new_client.logged_in:
     ui = UI(new_client)
-new_client.disconnect()

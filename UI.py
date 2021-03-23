@@ -2,24 +2,20 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 from threading import Thread
+from PIL import ImageTk, Image, ImageDraw, ImageOps
+import time
 
-
-"""
-    Entry thông thường không có placeholder
-    Tạo class entry mới inherit từ ttk.Entry 
-    Thiết kế placeholder cho entry này 
-"""
-
-
+# Class cho khung chứa bạn bè
 class Friend:
     cur_user = None
     cnt = 0
     lbl_font = "Arial 10 bold"
 
-    def __init__(self, username, row, client, ui):
+    def __init__(self, username, row, client, ui, color="white"):
         self.client = client
         self.username = username
         self.ui = ui
+        self.color = color
 
         ui.frmFriend.grid_columnconfigure(0, weight=1)
         self.Frame = tk.Frame(
@@ -29,7 +25,7 @@ class Friend:
             self.Frame,
             text=username,
             bg=ui.frmFriend["bg"],
-            fg="white",
+            fg=self.color,
             font=self.lbl_font,
         )
 
@@ -43,8 +39,6 @@ class Friend:
         self.Frame.grid(row=row, column=0, sticky="NSEW", pady=5)
 
     def SwitchFriend(self, event):
-        # self.ui.txtChat.config(state=tk.NORMAL)
-        # self.ui.txtChat.delete(1.0, tk.END)
         self.client.send_messages("/quit")
         self.client.send_messages(f"/tp {self.username}")
 
@@ -64,7 +58,7 @@ class Friend:
         for widget in self.ui.frmChat.scrollable_frame.winfo_children():
             widget.destroy()
 
-        self.frmChat.canvas.yview_moveto("1.0")
+        self.ui.frmChat.canvas.yview_moveto("1.0")
 
     def FrameEnter(self, event):
         self.Frame["bg"] = "#232529"
@@ -75,20 +69,23 @@ class Friend:
         self.lblUsername["bg"] = self.ui.frmFriend["bg"]
 
 
+# Class cho khung chứa tin nhắn
 class Message(tk.Frame):
     row = 0
 
-    def __init__(self, root, text, ui, username, color):
+    def __init__(self, root, text, ui, username, color=None, avatar=None):
         self.ui = ui
+        self.username = username
+        self.color = color
+        self.text = text
+
         super().__init__(
             root.scrollable_frame,
             bg=ui.frmChat["bg"],
             # bg="black",
             width=root.winfo_width(),
-            height=(len(text) * 5 / ui.frmChat.winfo_width() + 2) * 20,
+            height=(len(text) * 5 / ui.frmChat.winfo_width() + 2) * 20 + 40,
         )
-        self.bind("<Enter>", self.FrameEnter)
-        self.bind("<Leave>", self.FrameLeave)
 
         self.grid(row=ui.chat_row, column=0, sticky="NSWE", pady=(0, 8))
         ui.chat_row += 1
@@ -96,31 +93,12 @@ class Message(tk.Frame):
         self.grid_propagate(0)
         self.update()
 
-        self.txtName = tk.Text(
-            self,
-            bg=ui.frmChat["bg"],
-            fg=color,
-            font=("Arial", 11, "bold"),
-            borderwidth=0,
-            width=len(username) + 1,
-            height=1,
-        )
-        self.txtName.insert(tk.END, username)
-        self.txtName.grid(row=0, column=0, sticky="W")
-        self.txtName.config(state=tk.DISABLED)
+        self.LoadAvatar()
+        self.LoadName()
+        self.LoadText()
 
-        self.txtText = tk.Text(
-            self,
-            bg=ui.frmChat["bg"],
-            fg="white",
-            font=("Arial", 11),
-            borderwidth=0,
-            width=len(text),
-        )
-
-        self.txtText.insert(tk.END, text)
-        self.txtText.grid(row=1, column=0, sticky="W")
-        self.txtText.config(state=tk.DISABLED)
+        self.bind("<Enter>", self.FrameEnter)
+        self.bind("<Leave>", self.FrameLeave)
 
         Message.row += 1
 
@@ -129,14 +107,66 @@ class Message(tk.Frame):
         self["bg"] = color
         self.txtText["bg"] = color
         self.txtName["bg"] = color
+        self.lblImage["bg"] = color
 
     def FrameLeave(self, event):
         color = self.ui.frmChat["bg"]
         self["bg"] = color
         self.txtText["bg"] = color
         self.txtName["bg"] = color
+        self.lblImage["bg"] = color
+
+    def LoadAvatar(self):
+        size = (40, 40)
+        mask = Image.new("L", size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0) + mask.size, fill=255)
+
+        self.img = Image.open("D:\Python\Messenger\suisei1.png")
+        self.output = ImageOps.fit(self.img, size, centering=(0.5, 0.5))
+        self.output.putalpha(mask)
+
+        self.output.save("D:\Python\Messenger\output.png")
+
+        self.new_img = ImageTk.PhotoImage(self.output)
+
+        self.lblImage = tk.Label(self, bg=self["bg"])
+        self.lblImage["image"] = self.new_img
+        self.lblImage.grid(row=0, column=0, sticky="w")
+
+    def LoadName(self):
+        self.txtName = tk.Text(
+            self,
+            bg=self.ui.frmChat["bg"],
+            # fg=self.color,
+            font=("Arial", 11, "bold"),
+            borderwidth=0,
+            width=len(self.username) + 1,
+            height=1,
+        )
+        self.txtName.insert(tk.END, self.username)
+        self.txtName.config(state=tk.DISABLED)
+        self.txtName.grid(row=0, column=0, sticky="wn", padx=(50, 0), pady=(15, 0))
+
+    def LoadText(self):
+        self.txtText = tk.Text(
+            self,
+            bg=self.ui.frmChat["bg"],
+            fg="white",
+            font=("Arial", 11),
+            borderwidth=0,
+        )
+        if len(self.text) * 10 > self.winfo_width():
+            self.txtText["width"] = self.winfo_width() // 10
+        else:
+            self.txtText["width"] = len(self.text)
+
+        self.txtText.insert(tk.END, self.text)
+        self.txtText.grid(row=1, column=0, sticky="w", padx=(50, 0))
+        self.txtText.config(state=tk.DISABLED)
 
 
+# Class Frame cuộn được cho khung chat
 class ScrollableFrame(tk.Frame):
     def __init__(self, container, *args, **kwargs):
         super().__init__(container, *args, **kwargs)
@@ -179,6 +209,7 @@ class ScrollableFrame(tk.Frame):
 # Class cho UI chương trình chính
 class UI:
     friend_list = []
+    online_friend_list = []
     row_index = 1
     cur_friend = ""
 
@@ -275,8 +306,8 @@ class UI:
         self.root.grid_columnconfigure(2, weight=1)
         self.btnSend.grid(row=2, column=2, ipady=3, sticky="NSEW")
 
-        Thread(target=self.GetMessage).start()
-        Thread(target=self.SetFriend).start()
+        Thread(target=self.GetMessage, daemon=True).start()
+        Thread(target=self.SetFriend, daemon=True).start()
         self.root.update()
         self.root.mainloop()
 
@@ -305,66 +336,40 @@ class UI:
         if self.txtSend_length == 0 or text == "\n":
             return
         text = text.replace("\n", "")
-        # new_msg = Message(self.frmChat, text, self)
-        # new_msg.grid(row=self.chat_row, column=0, sticky="EWNS")
-        Message(self.frmChat, text, self, "AdamAV", "white")
-        # self.chat_row += 1
-
-        # self.txtChat.config(state=tk.NORMAL)
-        # self.txtChat.insert("end", f"[You] ", "chat_font_bold")
-        # self.txtChat.insert("end", f"{text}\n")
-        # if event == None:
-        #     self.txtChat.insert("end", "\n")
-
+        Message(self.frmChat, text, self, self.client.this_name, "white")
         self.client.send_messages(text)
         self.TextLenCount()
 
         self.frmChat.canvas.yview_moveto("1.0")
-        # self.txtChat.config(state=tk.DISABLED)
 
     def GetMessage(self):
         while self.run:
-            # self.txtChat.config(state=tk.DISABLED)
             msg = self.client.receive_messages()
-            # self.txtChat.config(state=tk.NORMAL)
-            msg_split = msg.split(" ")
-            if msg_split[0] == "!list":
-                self.friend_list = msg_split[1:]
+            print(msg)
+            split_msg = msg.split(" ")
+            if split_msg[0] == "!list":
+                if len(split_msg) != 0:
+                    self.friend_list = split_msg[1:]
+            elif split_msg[0] == "!online_list":
+                if len(split_msg) != 0:
+                    self.online_friend_list = split_msg[1:]
             else:
-                line_list = msg.split("\n")
-                for line in line_list:
-                    text = line.split(" ")
-                    # self.frmChat.insert(tk.END, text[0] + " ", "chat_font_bold")
-                    # self.frmChat.insert(tk.END, " ".join(text[1:]) + "\n")
-                    if text[0][1:-1] == "You":
-                        Message(
-                            self.frmChat,
-                            " ".join(text[1:]),
-                            self,
-                            text[0][1:-1],
-                            "white",
-                        ).grid(row=self.chat_row, column=0)
-                    else:
-                        Message(
-                            self.frmChat,
-                            " ".join(text[1:]),
-                            self,
-                            text[0][1:-1],
-                            "green",
-                        ).grid(row=self.chat_row, column=0)
-
-                    self.chat_row += 1
-            self.frmChat.canvas.yview_moveto("1.0")
+                msg_list = msg.split("\n")
+                for message in msg_list:
+                    Message(self.frmChat, message, self, split_msg[0], "white")
 
     def SetFriend(self):
+        self.client.send_messages("/online_list")
+        time.sleep(0.5)
         self.client.send_messages("/list")
-        while len(self.friend_list) == 0:
-            continue
+        time.sleep(0.5)
+        for friend in self.online_friend_list:
+            self.AddFriend(friend, color="green")
         for friend in self.friend_list:
-            self.AddFriend(friend)
+            self.AddFriend(friend, color="white")
 
-    def AddFriend(self, username):
-        Friend(username, self.row_index, self.client, self)
+    def AddFriend(self, username, color):
+        Friend(username, self.row_index, self.client, self, color=color)
         self.row_index += 1
 
     def OnClose(self):

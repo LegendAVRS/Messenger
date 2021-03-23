@@ -15,6 +15,7 @@ def raise_frame(frame):
 
 class Start_UI:
     run = True
+    msg = ""
 
     def __init__(self, client):
         self.client = client
@@ -34,7 +35,7 @@ class Start_UI:
         self.signin_ui.frame.grid(row=0, column=0, sticky=tk.N)
         self.signup_ui.frame.grid(row=0, column=0, sticky=tk.N)
 
-        Thread(target=self.GetMessage).start()
+        Thread(target=self.GetMessage, daemon=True).start()
 
         self.root.update()
         self.root.mainloop()
@@ -43,7 +44,8 @@ class Start_UI:
         while self.run:
             if self.client.logged_in:
                 break
-            self.client.receive_messages()
+            self.msg = self.client.receive_messages()
+            print(self.msg)
             if self.client.logged_in:
                 break
 
@@ -104,5 +106,4 @@ class Start_UI:
 
     def OnClose(self):
         self.run = False
-        self.client.send_messages("/quit".replace("\n", ""))
         self.root.destroy()
