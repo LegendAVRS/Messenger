@@ -424,17 +424,17 @@ def client_chat(client, name, receiver):
 
         if receiver in client_online and client_location[receiver] == name:
             recv_conn, recv_addr = client_online[receiver]
-            send_messages(recv_conn, f"![{name}] {msg}")
+            send_messages(recv_conn, f"?[{name}] {msg}")
 
         # lưu trữ message của bản thân
         newpath = store.mainpath + name + ".db"
         store.path = newpath
-        store.update_chat(receiver, f"[You] {msg}\n")
+        store.update_chat(receiver, f"?[You] {msg}\n")
 
         # Lưu trữ message của đối tượng chat
         newpath = store.mainpath + receiver + ".db"
         store.path = newpath
-        store.update_chat(name, f"[{name}] {msg}\n")
+        store.update_chat(name, f"?[{name}] {msg}\n")
 
 
 def is_in_group(username, name):
@@ -478,13 +478,13 @@ def group_chat(client, username, name):
     return: None
     """
 
-    welcome = f"""
-                {"=" * 40}
-                {f"Yourname = {name};".center(40)}
-                {f"Group = {name}".center(40)}
-                {"=" * 40}\n"""
-    send_messages(client, CLEAR)
-    send_messages(client, welcome)
+    # welcome = f"""
+    #             {"=" * 40}
+    #             {f"Yourname = {name};".center(40)}
+    #             {f"Group = {name}".center(40)}
+    #             {"=" * 40}\n"""
+    # send_messages(client, CLEAR)
+    # send_messages(client, welcome)
 
     # Mở đoạn chat
     groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
@@ -632,11 +632,11 @@ def client_and_server(client, addr):
     send_messages(client, "Correct password.")
     send_messages(client, CLEAR)
     send_messages(client, CODE_NAME + user.username)  # Gửi đi tên tài khoản
-    # welcomeback_msg = f"""
-    #             ==============================================
-    #             \t\tWelcome back {user.username}
-    #             =============================================="""
-    # send_messages(client, welcomeback_msg)
+    welcomeback_msg = f"""
+                ==============================================
+                \t\tWelcome back {user.username}
+                =============================================="""
+    send_messages(client, welcomeback_msg)
 
     client_online[user.username] = (client, addr)
     client_location[user.username] = AT_SERVER

@@ -336,7 +336,7 @@ class UI:
         if self.txtSend_length == 0 or text == "\n":
             return
         text = text.replace("\n", "")
-        Message(self.frmChat, text, self, self.client.this_name, "white")
+        Message(self.frmChat, text, self, "You", "white")
         self.client.send_messages(text)
         self.TextLenCount()
 
@@ -353,10 +353,18 @@ class UI:
             elif split_msg[0] == "!online_list":
                 if len(split_msg) != 0:
                     self.online_friend_list = split_msg[1:]
-            else:
+            elif split_msg[0][0] == "?":
                 msg_list = msg.split("\n")
                 for message in msg_list:
-                    Message(self.frmChat, message, self, split_msg[0], "white")
+                    message_split = message.split(" ")
+                    if len(message_split) > 1:
+                        Message(
+                            self.frmChat,
+                            " ".join(message_split[1:]),
+                            self,
+                            split_msg[0][2:-1],
+                            "white",
+                        )
 
     def SetFriend(self):
         self.client.send_messages("/online_list")

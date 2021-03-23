@@ -63,6 +63,7 @@ class Start_UI:
 
     def CheckSignupInput(self):
         self.client.send_messages("/quit")
+        time.sleep(0.5)
         self.client.send_messages("/register")
         username = self.signup_ui.txtUsername.get_string()
         password = self.signup_ui.txtPassword.get_string()
