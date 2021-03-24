@@ -210,6 +210,7 @@ class ScrollableFrame(tk.Frame):
 class UI:
     friend_list = []
     online_friend_list = []
+    mygroup = []
     row_index = 1
     cur_friend = ""
 
@@ -348,7 +349,11 @@ class UI:
             print(msg)
             split_msg = msg.split(" ")
             
-            if split_msg[0] == "!ADD":
+            if split_msg[0] == "!GROUP":
+                self.mygroup.append(split_msg[1])
+                # print("GROUP", split_msg[1])
+
+            elif split_msg[0] == "!ADD":
                 self.friend_list.append(split_msg[1])
                 # print("USER", split_msg[1])
             

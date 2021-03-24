@@ -49,6 +49,7 @@ CODE_NAME = "#NAME#"
 CONNECT = "CONNECT"
 DISCONNECT = "DISCONNECT"
 ADD = "ADD"
+GROUP = "GROUP"
 
 # PHẢN HỒI TỪ SERVER
 login_instruction = "Insert [/login <username> <password>]"
@@ -616,6 +617,20 @@ def All_online_list_discard(name):
         send_messages(recv_conn, f"!DISCONNECT {name}")
 
 
+def Which_group_are_you_in(client, name):
+    """
+    => Gửi tin nhắn những nhóm name thuộc về
+    param client: client của người dùng
+    param name: tên người dùng
+    return: None
+    """
+
+    for group_name in group:
+        for member in group[group_name]:
+            if name == member[0]:
+                send_messages(client, f"!GROUP {group_name}")
+
+
 def client_and_server(client, addr):
     """
     => Giao tiếp giữa SERVER và người dùng
@@ -699,6 +714,8 @@ def client_and_server(client, addr):
                 =============================================="""
     send_messages(client, welcomeback_msg)
 
+
+    Which_group_are_you_in(client, user.username)
     Online_list_display(client, user.username)
     List_display(client, user.username)
 
@@ -713,7 +730,7 @@ def client_and_server(client, addr):
 
         if msg == False:
             print(disconnect_msg + f" with name = {user.username}")
-            
+
             All_online_list_discard(user.username)
 
             try:
@@ -778,6 +795,9 @@ def client_and_server(client, addr):
                     command == -1
                 ):  # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
                     print(disconnect_msg + f" with name = {user.username}")
+
+                    All_online_list_discard(user.username)
+
                     try:
                         client_online.pop(user.username)
                     except Exception as e:
@@ -820,6 +840,9 @@ def client_and_server(client, addr):
                     command == -1
                 ):  # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
                     print(disconnect_msg + f" with name = {user.username}")
+
+                    All_online_list_discard(user.username)
+
                     try:
                         client_online.pop(user.username)
                     except Exception as e:
