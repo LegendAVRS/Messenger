@@ -178,7 +178,7 @@ def client_login(client):
         return -1
 
 
-def All_list_appnend(name):
+def All_list_append(name):
     """
     => Thêm tên người dùng mới vào list của những người dùng khác
     param name: tên người dùng được thêm
