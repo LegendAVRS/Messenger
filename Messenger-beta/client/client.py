@@ -229,19 +229,6 @@ class Client:
         update_thread = Thread(target=self.update_messages, daemon=True)
         update_thread.start()
 
-    def send_messages(self, msg):
-        """
-        => send messages to server
-        :param msg: str
-        :return: None
-        """
-
-        message = msg.encode("utf8")
-        client_socket.send(message)
-
-        # if msg == "/logout":
-        #     client_socket.close()
-
     # Changed
     def receive_messages(self):
         """
@@ -322,6 +309,7 @@ class Client:
 
                 if len(msg) > 6 and msg[:6] == self.CODE_NAME:
                     self.this_name = msg[6:]
+                    print(self.this_name)
                     # self.cmdConsole.this_name = self.this_name
                     continue
 
@@ -362,7 +350,6 @@ class Client:
                     self.console = True
 
                 elif msg == self.password_instruction:
-                    print("yes")
                     self.pwd_confirm = True
 
     def on_closing(self):
