@@ -23,3 +23,9 @@ class Signup_UI(Signin_UI):
         self.txtPasswordAgain.grid(row=3, column=0, ipady=10, padx=20, pady=(0, 20))
         self.btnSignup.grid(row=4, column=0, pady=0)
         self.btnSignin.grid(row=5, column=0, pady=20)
+
+        self.txtUsername.lift()
+        self.txtPassword.lift()
+        self.txtPasswordAgain.lift()
+        self.btnSignup.lift()
+        self.btnSignin.lift()

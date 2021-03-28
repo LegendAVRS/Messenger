@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from Signin_UI import Signin_UI
 from Signup_UI import Signup_UI
+from Avatar_UI import Avatar_UI
 from tkinter import messagebox
 from threading import Thread
 
@@ -16,6 +17,7 @@ def raise_frame(frame):
 class Start_UI:
     run = True
     msg = ""
+    client = None
 
     def __init__(self, client):
         self.client = client
@@ -25,6 +27,7 @@ class Start_UI:
 
         self.signin_ui = Signin_UI(self.root, self)
         self.signup_ui = Signup_UI(self.root, self)
+        self.avatar_ui = Avatar_UI(self.root, self)
 
         self.signin_ui.btnSignup.config(command=self.SwitchToSignup)
         self.signup_ui.btnSignin.config(command=self.SwitchToSignin)
@@ -32,12 +35,23 @@ class Start_UI:
 
         self.signin_ui.btnSignin.config(command=self.CheckSigninInput)
 
+        self.avatar_ui.btnContinue.config(command=self.SwitchToSignin)
+
+        self.signup_ui.txtUsername.bind("<KeyRelease-Return>", self.CheckSignupInput)
+        self.signup_ui.txtPassword.bind("<KeyRelease-Return>", self.CheckSignupInput)
+        self.signup_ui.txtPasswordAgain.bind(
+            "<KeyRelease-Return>", self.CheckSignupInput
+        )
+        self.signin_ui.txtUsername.bind("<KeyRelease-Return>", self.CheckSigninInput)
+        self.signin_ui.txtPassword.bind("<KeyRelease-Return>", self.CheckSigninInput)
+
         self.signin_ui.frame.grid(row=0, column=0, sticky=tk.N)
         self.signup_ui.frame.grid(row=0, column=0, sticky=tk.N)
 
-        Thread(target=self.GetMessage, daemon=True).start()
-
         self.root.update()
+        self.SwitchToSignup()
+        self.avatar_ui.frame.grid(row=0, column=0, sticky=tk.N)
+        Thread(target=self.GetMessage, daemon=True).start()
         self.root.mainloop()
 
     def GetMessage(self):
@@ -61,7 +75,14 @@ class Start_UI:
             f"{self.signin_ui.frame.winfo_width()}x{self.signin_ui.frame.winfo_height()}"
         )
 
-    def CheckSignupInput(self):
+    def SwitchToAvatar(self):
+        raise_frame(self.avatar_ui.frame)
+        self.root.geometry(
+            f"{self.avatar_ui.frame.winfo_width()}x{self.avatar_ui.frame.winfo_height()}"
+        )
+
+    def CheckSignupInput(self, event=None):
+        self.SwitchToAvatar()
         self.client.send_messages("/quit")
         time.sleep(0.5)
         self.client.send_messages("/register")
@@ -86,7 +107,7 @@ class Start_UI:
         else:
             messagebox.showerror(title="Warning", message="Password not the same")
 
-    def CheckSigninInput(self):
+    def CheckSigninInput(self, event=None):
         username = self.signin_ui.txtUsername.get_string()
         password = self.signin_ui.txtPassword.get_string()
         if len(username) == 0 or len(password) == 0:
@@ -110,3 +131,5 @@ class Start_UI:
         self.root.destroy()
 
 
+if __name__ == "__main__":
+    ui = Start_UI(213)

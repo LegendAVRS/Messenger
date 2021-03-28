@@ -231,7 +231,11 @@ class Message(tk.Frame):
             # fg=self.color,
             font=("Arial", 11, "bold"),
             borderwidth=0,
-            width=len(self.username) + 1,
+            width=len(self.username)
+            + ceil(self.username.count("m"))
+            + ceil(self.username.count("w"))
+            + ceil(self.username.count("b"))
+            + 1,
             height=1,
         )
         self.txtName.insert(tk.END, self.username)
