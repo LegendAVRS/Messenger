@@ -25,6 +25,7 @@ class UI:
     msg_loaded = True
     run = True
     chat_cleared = True
+    # client = "123"
 
     def __init__(self, client):
         self.client = client
@@ -58,7 +59,7 @@ class UI:
             text="----- Friend list -----",
             font=self.lblFrm_font,
         )
-        self.lblFrameFriend.grid(row=0, column=0, sticky="NSEW", padx=(0, 20))
+        self.lblFrameFriend.grid(row=0, column=0, sticky="N", padx=(0, 30))
 
         # Khởi tạo frame chứa danh sách bạn bè
         self.frmFriend = ScrollableFrame(
@@ -77,7 +78,7 @@ class UI:
             text="----- Group list -----",
             font=self.lblFrm_font,
         )
-        self.lblFrameGroup.grid(row=2, column=0, sticky="NSEW", padx=(0, 20))
+        self.lblFrameGroup.grid(row=2, column=0, sticky="N", padx=(0, 30))
 
         # Khởi tạo frame chứa danh sách nhóm
         self.frmGroup = ScrollableFrame(
@@ -105,7 +106,7 @@ class UI:
         self.frmCur = tk.Frame(self.root, bg=self.frmUser["bg"], height=40, width=50)
         self.frmCur.grid_propagate(0)
         self.root.grid_columnconfigure(1, weight=1)
-        self.frmCur.grid(row=0, column=1, sticky="NSEW", columnspan=2)
+        self.frmCur.grid(row=0, column=1, sticky="NSEW")
 
         # Khởi tạo frame khung chat
         self.frmChat = ScrollableFrame(self.root, height=600, bg="#36393f")
@@ -113,7 +114,7 @@ class UI:
         self.frmChat.grid_propagate(0)
 
         self.root.grid_rowconfigure(1, weight=1)
-        self.frmChat.grid(columnspan=2, row=1, column=1, sticky="NSEW")
+        self.frmChat.grid(row=1, column=1, sticky="NSEW")
 
         # Khởi tạo chat input text box
         self.txtSend = PH_Text(
@@ -129,14 +130,13 @@ class UI:
         self.root.grid_rowconfigure(2, weight=1)
         self.txtSend.grid(row=2, column=1, sticky="NSEW")
 
-        # Khởi tạo button gửi tin nhắn
-        self.btnSend = ttk.Button(self.root, text="Send", command=self.SendMessage)
-        self.root.grid_columnconfigure(2, weight=1)
-        self.btnSend.grid(row=2, column=2, ipady=3, sticky="NSEW")
-
         Thread(target=self.GetMessage, daemon=True).start()
         Thread(target=self.SetFriend, daemon=True).start()
         Thread(target=self.SetUser, daemon=True).start()
+        # for i in range(10):
+        #     self.AddFriend(f"Friend {i}", "white")
+        # self.SetUser()
+
         self.root.update()
         self.root.mainloop()
 
@@ -214,14 +214,14 @@ class UI:
     def SetUser(self):
         while self.client.this_name == "You":
             continue
-        User(self, self.frmUser, self.client.this_name)
+        global user
+        user = User(text=self.client.this_name, frame=self.frmUser)
 
     def OnClose(self):
         self.run = False
-        self.SendMessage("/quit")
+        # self.SendMessage("/quit")
         self.root.destroy()
 
 
 if __name__ == "__main__":
     ui = UI()
-    ui.root.mainloop()

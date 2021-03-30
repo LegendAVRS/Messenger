@@ -2,9 +2,13 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk, Image, ImageDraw, ImageOps
 from tkinter import filedialog as fd
+import os
+from Widget import DrawMask
 
 
 class Avatar_UI:
+    size = (294, 294)
+
     def __init__(self, root, start_ui):
         self.start_ui = start_ui
         self.frame = tk.Frame(master=root)
@@ -69,16 +73,15 @@ class Avatar_UI:
         )
 
     def LoadDefaultAvatar(self):
-        size = (298, 298)
-        mask = Image.new("L", size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0) + mask.size, fill=255)
-
+        path = os.path.dirname(os.path.realpath(__file__)) + "\\ava_mask.png"
+        if not os.path.exists(path):
+            DrawMask(self.size, path)
+        self.mask = Image.open(path)
         self.img = Image.open("D:\Python\Messenger\suisei1.png")
-        self.output = ImageOps.fit(self.img, size, centering=(0.5, 0.5))
-        self.output.putalpha(mask)
+        self.output = ImageOps.fit(self.img, self.size, centering=(0.5, 0.5))
+        self.output.putalpha(self.mask)
 
-        self.output.save("D:\Python\Messenger\output.png")
+        # self.output.save("D:\Python\Messenger\output.png")
 
         self.new_img = ImageTk.PhotoImage(self.output)
 
@@ -94,14 +97,9 @@ class Avatar_UI:
         if len(filename) == 0:
             return
 
-        size = (298, 298)
-        mask = Image.new("L", size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0) + mask.size, fill=255)
-
         self.img = Image.open(filename)
-        self.output = ImageOps.fit(self.img, size, centering=(0.5, 0.5))
-        self.output.putalpha(mask)
+        self.output = ImageOps.fit(self.img, self.size, centering=(0.5, 0.5))
+        self.output.putalpha(self.mask)
 
         self.output.save("D:\Python\Messenger\output.png")
 

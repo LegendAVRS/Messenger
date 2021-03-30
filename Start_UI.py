@@ -8,6 +8,7 @@ from threading import Thread
 
 import time
 import sys
+import os
 
 
 def raise_frame(frame):
@@ -17,7 +18,7 @@ def raise_frame(frame):
 class Start_UI:
     run = True
     msg = ""
-    client = None
+    # client = None
 
     def __init__(self, client):
         self.client = client
@@ -82,10 +83,8 @@ class Start_UI:
         )
 
     def CheckSignupInput(self, event=None):
-        self.SwitchToAvatar()
         self.client.send_messages("/quit")
-        time.sleep(0.5)
-        self.client.send_messages("/register")
+        time.sleep(0.2)
         username = self.signup_ui.txtUsername.get_string()
         password = self.signup_ui.txtPassword.get_string()
         passwordagain = self.signup_ui.txtPasswordAgain.get_string()
@@ -97,11 +96,13 @@ class Start_UI:
             return
 
         if password == passwordagain:
+            self.client.send_messages("/register")
+            time.sleep(0.2)
             self.client.send_messages(f"/usr {username}")
-            time.sleep(1)
+            time.sleep(0.5)
             if self.client.pwd_confirm == True:
                 self.client.send_messages(f"/pwd {password} {passwordagain}")
-                self.SwitchToSignin()
+                self.SwitchToAvatar()
             else:
                 messagebox.showerror(title="Warning", message="Username not valid")
         else:

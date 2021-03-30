@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk, Image, ImageDraw, ImageOps
 from math import ceil
+import os
 
 # Entry có placeholder
 class PH_Entry(ttk.Entry):
@@ -101,17 +102,41 @@ class PH_Text(tk.Text):
 
 # Thông tin người dùng
 class User:
-    def __init__(self, ui, root, text):
-        self.ui = ui
+    def __init__(self, text, frame):
         self.text = text
+        self.frame = frame
+        self.LoadName()
+        self.LoadAvatar()
+
+    def LoadName(self):
         self.lblUsername = tk.Label(
-            root,
+            self.frame,
             text=self.text,
             font=("Arial", "10", "bold"),
-            bg=root["bg"],
+            bg=self.frame["bg"],
             fg="white",
         )
-        self.lblUsername.grid(row=0, column=0)
+        self.lblUsername.grid(row=0, column=1)
+
+    def LoadAvatar(self):
+        size = (25, 25)
+        path = os.path.dirname(os.path.realpath(__file__)) + "\\friend_mask.png"
+        if not os.path.exists(path):
+            DrawMask(size, path)
+
+        mask = Image.open(path)
+        self.img = Image.open("D:\Python\Messenger\suisei1.png")
+        self.output = ImageOps.fit(self.img, size, centering=(0.5, 0.5))
+        self.output.putalpha(mask)
+
+        self.output.save("D:\Python\Messenger\output.png")
+
+        self.new_img = ImageTk.PhotoImage(self.output)
+
+        self.lblImage = tk.Label(self.frame, bg=self.frame["bg"])
+        self.lblImage["image"] = self.new_img
+
+        self.lblImage.grid(row=0, column=0, sticky="w", padx=5, pady=5)
 
 
 # Frame cuộn được
@@ -120,29 +145,49 @@ class ScrollableFrame(tk.Frame):
         super().__init__(container, *args, **kwargs)
         self.canvas = tk.Canvas(self, *args, **kwargs, highlightthickness=0)
 
-        scrollbar = tk.Scrollbar(
-            self, orient="vertical", command=self.canvas.yview, width=12
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure(
+            "Vertical.TScrollbar",
+            gripcount=0,
+            background="#36393f",
+            darkcolor="#36393f",
+            lightcolor="#36393f",
+            troughcolor="#36393f",
+            bordercolor="#36393f",
+            arrowcolor="#36393f",
+            highlightbackground="#36393f",
+            arrowsize=8,
+        )
+
+        self.scrollbar = ttk.Scrollbar(
+            self,
+            orient="vertical",
+            command=self.canvas.yview,
+            style="Vertical.TScrollbar",
         )
         self.canvas.bind("<Enter>", self.BindWheel)
         self.canvas.bind("<Leave>", self.UnbindWheel)
 
         self.scrollable_frame = tk.Frame(self.canvas, *args, **kwargs)
+        self.scrollable_frame.bind("<Configure>", self.Check)
+
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
+            add="+",
         )
 
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
 
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
-        self.canvas.configure(yscrollcommand=scrollbar.set)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
 
         # self.canvas.pack(side="top", fill="both", expand=True)
         # scrollbar.pack(side="right", fill="y")
         self.grid_rowconfigure(0, weight=1)
         self.canvas.grid(row=0, column=0, sticky="NSWE")
-        scrollbar.grid(row=0, column=1, sticky="NSEW")
 
     def OnMouseWheel(self, event):
         self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
@@ -152,6 +197,15 @@ class ScrollableFrame(tk.Frame):
 
     def UnbindWheel(self, event):
         self.canvas.unbind_all("<MouseWheel>")
+
+    def Check(self, event):
+        if event.height > 616:
+            self.scrollbar.grid(row=0, column=1, sticky="NSWE")
+            self.scrollable_frame.unbind("Configure")
+            self.scrollable_frame.bind(
+                "<Configure>",
+                lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
+            )
 
 
 # Thông tin tin nhắn
@@ -207,10 +261,11 @@ class Message(tk.Frame):
     # Hiển thị avatar người nhắn
     def LoadAvatar(self):
         size = (40, 40)
-        mask = Image.new("L", size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0) + mask.size, fill=255)
+        path = os.path.dirname(os.path.realpath(__file__)) + "\msg_mask.png"
+        if not os.path.exists(path):
+            DrawMask(size, path)
 
+        mask = Image.open(path)
         self.img = Image.open("D:\Python\Messenger\suisei1.png")
         self.output = ImageOps.fit(self.img, size, centering=(0.5, 0.5))
         self.output.putalpha(mask)
@@ -291,13 +346,8 @@ class Friend:
             cursor="hand2",
         )
 
-        self.lblUsername = tk.Label(
-            self.Frame,
-            text=username,
-            bg=ui.frmFriend["bg"],
-            fg=self.color,
-            font=self.lbl_font,
-        )
+        self.LoadAvatar()
+        self.LoadName()
 
         self.Frame.bind("<Button-1>", self.SwitchFriend)
         self.Frame.bind("<Enter>", self.FrameEnter)
@@ -307,8 +357,6 @@ class Friend:
         self.lblUsername.bind("<Leave>", self.FrameLeave)
 
         self.Frame.grid_propagate(0)
-
-        self.lblUsername.grid(row=0, column=0)
 
     # Chuyển đổi đối tượng chat
     def SwitchFriend(self, event):
@@ -323,7 +371,6 @@ class Friend:
         for widget in self.ui.frmCur.winfo_children():
             widget.destroy()
 
-        User(self.ui, self.ui.frmCur, self.username)
         self.ui.chat_row = 0
 
         # Xóa các tin nhắn cũ
@@ -336,6 +383,9 @@ class Friend:
             for item in widget.winfo_children():
                 item["bg"] = color
 
+        global cur
+        cur = User(text=self.username, frame=self.ui.frmCur)
+
         self.FrameClicked()
 
         self.ui.chat_cleared = True
@@ -344,6 +394,7 @@ class Friend:
     def ChangeColor(self, color):
         self.Frame["bg"] = color
         self.lblUsername["bg"] = color
+        self.lblImage["bg"] = color
 
     def FrameClicked(self):
         self.ChangeColor("#393c43")
@@ -356,6 +407,35 @@ class Friend:
     def FrameLeave(self, event=None):
         if Friend.clicked_friend != self.username:
             self.ChangeColor(self.ui.frmFriend["bg"])
+
+    def LoadName(self):
+        self.lblUsername = tk.Label(
+            self.Frame,
+            text=self.username,
+            bg=self.ui.frmFriend["bg"],
+            fg=self.color,
+            font=self.lbl_font,
+        )
+        self.lblUsername.grid(row=0, column=1)
+
+    def LoadAvatar(self):
+        size = (25, 25)
+        path = os.path.dirname(os.path.realpath(__file__)) + "\\friend_mask.png"
+        if not os.path.exists(path):
+            DrawMask(size, path)
+
+        mask = Image.open(path)
+        self.img = Image.open("D:\Python\Messenger\suisei1.png")
+        self.output = ImageOps.fit(self.img, size, centering=(0.5, 0.5))
+        self.output.putalpha(mask)
+
+        self.output.save("D:\Python\Messenger\output.png")
+
+        self.new_img = ImageTk.PhotoImage(self.output)
+
+        self.lblImage = tk.Label(self.Frame, bg=self.Frame["bg"])
+        self.lblImage["image"] = self.new_img
+        self.lblImage.grid(row=0, column=0, sticky="w", padx=5)
 
 
 # Thông tin nhóm
@@ -390,3 +470,11 @@ class Group(Friend):
         self.Frame.grid_propagate(0)
 
         self.lblUsername.grid(row=0, column=0)
+
+
+# Vẽ mask thích hợp cho từng loại avatar
+def DrawMask(size, path):
+    mask = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0) + mask.size, fill=255)
+    mask.save(path)
