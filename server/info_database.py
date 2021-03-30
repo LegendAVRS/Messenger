@@ -129,4 +129,3 @@ def delete_all():
     
     conn.commit()
     conn.close()
-

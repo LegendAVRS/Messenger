@@ -1,125 +1,93 @@
-# import tkinter as tk
-# from tkinter import ttk
-# import sqlite3
-# import sys
-# import UI
-
-
-# # # Class cho UI chương trình chính
-# # class UI:
-# #     txtChat_width = 80
-# #     txtChat_height = 36
-
-# #     txtChat_font = "Arial 10"
-
-# #     txtSend_font = "Arial 10"
-# #     txtSend_length = 0
-# #     # Khởi tạo UI
-# #     def __init__(self):
-# #         # Root
-# #         self.root = tk.Tk()
-# #         self.root.title("Messenger")
-# #         self.root.configure(background="#242526")
-
-# #         # Khởi tạo chat text box
-# #         self.txtChat = tk.Text(
-# #             self.root,
-# #             width=self.txtChat_width,
-# #             height=self.txtChat_height,
-# #             highlightbackground="#313236",
-# #             highlightthickness=1,
-# #             background="#313236",
-# #             fg="white",
-# #         )
-# #         self.txtChat.grid(columnspan=2, row=1, column=1, sticky=tk.NW)
-
-# #         self.txtChat.tag_configure("right", justify="right")
-# #         self.txtChat.tag_configure("left", justify="left")
-# #         self.txtChat.tag_configure("bold", font=f"{self.txtChat_font} bold")
-# #         self.txtChat.tag_configure("text_font", font=f"{self.txtChat_font}")
-# #         self.txtChat.config(state=tk.DISABLED)
+import tkinter as tk
+from tkinter import filedialog, Text, messagebox, filedialog, Label, Button, Tk
+from PIL import Image, ImageTk
+import os
+import cv2
+import threading
+import signal
+import time
 
 
 
-# # mainpath = "D:\\Python\\VLC\\My project\\server\\client_chat" + "\\bot.db"
-# # path = mainpath
-# # print(path)
-
-# # def create_table():
-# #     conn = sqlite3.connect(path)
-# #     c = conn.cursor()
-    
-# #     try:
-# #         c.execute("""CREATE TABLE chat(
-# #                     username text,
-# #                     conversation text
-# #                     )""")
-# #     except Exception as e:
-# #         print("[EXCEPTION]", e)
-
-# #     conn.commit()
-# #     conn.close()
-
-# # # def show():
-# # # 	conn = sqlite3.connect(path)
-# # # 	c = conn.cursor()
-
-# # # 	c.execute("SELECT * FROM user")
-# # # 	# c.execute("SELECT * FROM user WHERE username LIKE 'so%'")
-
-# # # 	items = c.fetchall()
-# # # 	for item in items:
-# # # 		print(item)
-
-# # # 	conn.close()
+# def openfilename(): 
+  
+#     # open file dialog box to select image 
+#     # The dialogue box has a title "Open" 
+#     filename = filedialog.askopenfilename(initialdir="/", title="Select File",
+#                                         filetypes=(("png type", "*.png"), ("jpeg type", "*.jpeg"), ("all", "*.*"))) 
+#     return filename 
 
 
-# # def exist(name):
-# # 	conn = sqlite3.connect(path)
-# # 	c = conn.cursor()
-
-# # 	c.execute("SELECT * FROM chat WHERE EXISTS(SELECT 1 FROM chat WHERE username = (?))", (name, ))
-
-# # 	statement = True if c.fetchone() else False
-
-# # 	conn.close()
-
-# # 	return statement
-
-# # def update_chat(name, msg):
-# # 	conn = sqlite3.connect(path)
-# # 	c = conn.cursor()
-
-# # 	if not exist(name):
-# # 		c.execute("INSERT INTO chat VALUES (?, ?)", (name, ""))
-
-# # 	c.execute("SELECT * FROM chat WHERE username = (?)", (name, ))
-# # 	text = c.fetchone()[1] + msg
-# # 	c.execute("UPDATE chat SET conversation = (?) WHERE username = (?)", (text, name))
-# # 	conn.commit()
-# # 	conn.close()
-
-# # def show(name):
-# # 	if not exist(name):
-# # 		print("Wrong name")
-# # 		return -1
+# def open_img(): 
+#     # Select the Imagename  from a folder  
+#     x = openfilename() 
+  
+#     # opens the image 
+#     img = Image.open(x) 
+      
+#     # resize the image and apply a high-quality down sampling filter 
+#     img = img.resize((250, 250), Image.ANTIALIAS) 
+  
+#     # PhotoImage class is used to add image to widgets, icons etc 
+#     img = ImageTk.PhotoImage(img) 
+   
+#     # create a label 
+#     panel = Label(root, image = img) 
+      
+#     # set the image as img  
+#     panel.image = img 
+#     panel.grid(row = 2) 
 
 
-# # 	conn = sqlite3.connect(path)
-# # 	c = conn.cursor()
+# # Create a window
+# root = Tk() 
+  
+# # Set Title as Image Loader 
+# root.title("Image Loader") 
+  
+# # Set the resolution of window 
+# root.geometry("550x300") 
+  
+# # Allow Window to be resizable 
+# root.resizable(width = True, height = True) 
+  
+# # Create a button and place it into the window using grid layout 
+# btn = Button(root, text ='open image', command = open_img).grid( 
+#                                         row = 1, columnspan = 4) 
+# root.mainloop()
 
-# # 	c.execute("SELECT * FROM chat WHERE username = (?)", (name, ))
-# # 	text = c.fetchone()[1]
-# # 	print(text)
-
-# # 	conn.commit()
-# # 	conn.close()
-
-# # 	return text
 	
+# statement = messagebox.askyesno(title="AVATAR", message="Do you want to set your AVATAR")
+# if statement == True:
+#     filename = filedialog.askopenfilename(initialdir="/", title="Select Your Avatar",
+#                                         filetypes=(("png files", "*.png"), ("jpeg files", "*.jpeg"), ("jpg files", "*.jpg")))
+#     img = cv2.imread(filename)
+#     cv2.imshow("Image", img)
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()
+
+# from shutil import copyfile
+
+# img_path = r"D:\Python\VLC\My project\server\default-profile.jpg"
+# dir_path = r"D:\Python\VLC\My project\server\avatar\my.png"
+# copyfile(img_path, dir_path)
 
 
-s = "aaaaa\n"
-s = s.strip()
-print(s, len(s))
-    
+exit_event = threading.Event()
+
+def run():
+    for i in range(1, 31):
+        print(f"{i} of 30 iterations")
+        time.sleep(1)
+
+        if exit_event.is_set():
+            break
+    print(f"{i} iterations completed before exiting")
+
+def signal_handle(signum, frame):
+    exit_event.set()
+
+signal.signal(signal.SIGINT, signal_handle)
+th = threading.Thread(target=run)
+th.start()
+th.join()

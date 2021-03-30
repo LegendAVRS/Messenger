@@ -4,6 +4,8 @@ import time
 import datetime
 from collections import OrderedDict
 import os
+from shutil import copyfile # để copy file
+import cv2
 
 from users import User
 import info_database as db
@@ -47,6 +49,8 @@ MEMBER = "MEMBER"
 OK = "ACCEPTED"
 ERROR = "ERROR"
 CODE_NAME = "#NAME#"
+AVATAR = "AVATAR"
+SET_AVA = "SET_AVA"
 
 # PHẢN HỒI TỪ SERVER
 login_instruction = "Insert [/login <username> <password>]"
@@ -90,6 +94,38 @@ group = {} # tên các nhóm gồm các thành viên của nhóm
 
 SERVER = socket(AF_INET, SOCK_STREAM)
 SERVER.bind(ADDR) # tạo server 
+
+
+
+def Avatar(client, name):
+    """
+    => Gửi avatar cho người dùng
+    param client: client của người dùng
+    param name: tên người dùng
+    return: None
+    """
+
+    path = __file__[:-9] + "\\avatar\\" + name + ".png"
+
+    img_file = open(__file__[:-9] + "\\avatar\\" + "test.png", "wb")
+
+    with open(path, "rb") as image:
+        cnt = 0
+        image_data = image.read(512)
+        while image_data:
+            cnt += 1
+            image_data = image.read(512)
+
+    send_messages(client, f"#LEN#{str(cnt)}")
+
+    with open(path, "rb") as image:
+        image_data = image.read(512)
+        while image_data:
+            client.send(image_data)
+            image_data = image.read(512)
+    time.sleep(5)
+    send_messages(client, "ENDofFILE")
+
 
 def get_messages(client):
     """
@@ -275,6 +311,47 @@ def client_register(client):
 
     print("[ANNOUNCEMENT] New user has been added") # Thông báo tài khoản mới đc đăng ký
     print("=> ",user.username, user.password)
+
+
+    try:
+        while True:
+            send_messages(client, AVATAR)
+
+            msg = get_messages(client)
+
+            if msg == False: # không nhận được tin nhắn
+                return -1
+
+            if msg == QUIT:
+                return QUIT # Thoát
+
+            if msg == "Yes":
+                path = __file__[:-9] + "\\avatar\\" + user.username + ".png"
+
+                with open(path, "wb") as file:
+                    while True:
+                        image_chunk = client.recv(2048)
+                        # print(image_chunk) // test
+                        if image_chunk == bytes("ENDofFILE", "utf8"):
+                            break
+                        file.write(image_chunk)
+                # print("end of process") // test
+                break
+
+            elif msg == "No":
+                default_img = __file__[:-9] + "\\default.jpg"
+                dir_path = __file__[:-9] + "\\avatar\\" + user.username + ".png"
+                copyfile(default_img, dir_path)
+                break
+            
+            else:
+                send_messages(client, error)
+    except Exception as e:
+        print("[EXCEPTION]", e)
+        return -1
+
+
+    # time.sleep(2)
     return OK
 
 
@@ -401,7 +478,19 @@ def client_chat(client, name, receiver):
     # Mở tất cả đoạn chat
     newpath = store.mainpath + name + ".db"
     store.path = newpath
+
     text = store.show(receiver)
+
+    if text == -1: # Chưa tồn tại đoạn chat giữa hai người
+        text = ""
+        store.update_chat(receiver, "")
+
+        newpath = store.mainpath + receiver + ".db"
+        store.path = newpath
+        store.update_chat(name, "")
+
+    newpath = store.mainpath + name + ".db"
+    store.path = newpath
     text = "?" + text
     send_messages(client, text)
 
@@ -483,10 +572,13 @@ def group_chat(client, username, name):
     groupchat.path = groupchat.mainpath + name + "_chat" + ".db"
     message = groupchat.show()
     message = '?' + message
-    for member in group[name]:
-        if member[0] in client_online and client_location[member[0]] == AT_GROUP + name:
-            recv_conn, recv_addr = client_online[member[0]]
-            send_messages(recv_conn, message)
+
+    send_messages(client, message)
+
+    # for member in group[name]:
+    #     if member[0] in client_online and client_location[member[0]] == AT_GROUP + name:
+    #         recv_conn, recv_addr = client_online[member[0]]
+    #         send_messages(recv_conn, message)
 
 
     # Phần chat của người dùng
@@ -618,7 +710,15 @@ def client_and_server(client, addr):
     send_messages(client, CLEAR)
     send_messages(client, "Correct password.")
     send_messages(client, CLEAR)
+
+    time.sleep(1)
     send_messages(client, CODE_NAME + user.username) # Gửi đi tên tài khoản
+
+    # Gửi avatar
+    Avatar(client, user.username)
+
+    # avatar_finished = get_messages(client)
+
     welcomeback_msg = f"""
                 ==============================================
                 \t\tWelcome back {user.username}

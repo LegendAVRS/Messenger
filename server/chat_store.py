@@ -61,7 +61,7 @@ def update_chat(name, msg):
 
 def show(name):
 	if not exist(name):
-		print("Wrong name")
+		# print("Wrong name")
 		return -1
 
 

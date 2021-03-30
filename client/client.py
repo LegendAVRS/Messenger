@@ -2,10 +2,12 @@ from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread, Lock
 import tkinter as tk
 from tkinter import ttk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 import time
 import sys
 import os
+import cv2
+from tqdm import tqdm
 # import UI
 
 class CommandConsole():
@@ -177,6 +179,21 @@ class CommandConsole():
         self.txtChat.delete(1.0, tk.END)
         self.txtChat['state'] = tk.DISABLED
 
+    def Ava_YesNoBox(self):
+        statement = messagebox.askyesno(title="AVATAR", message="Do you want to set your AVATAR")
+        return statement
+
+    def Img_Selecting(self):
+        filename = filedialog.askopenfilename(initialdir="/", title="Select Your Avatar",
+                                        filetypes=(("png files", "*.png"), ("jpeg files", "*.jpeg"), ("jpg files", "*.jpg")))
+        return filename
+
+
+def show_img(path):
+    img = cv2.imread(path)
+    cv2.imshow("Image", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 def send_messages(msg):
     """
@@ -202,6 +219,40 @@ client_socket = socket(AF_INET, SOCK_STREAM)
 client_socket.connect(ADDR)
 lock = Lock()
 
+class ProgressBar():
+    all_parts = 0
+    loaded_part = 0
+
+    def __init__(self):
+        self.window = tk.Tk()
+        
+        self.button = tk.Button(self.window, text="Loading", command=self.display)
+        self.button['state'] = tk.DISABLED
+        self.button.pack()
+
+        self.bar = ttk.Progressbar(self.window, orient=tk.HORIZONTAL, length =300)
+        self.bar.pack(pady=10)
+
+        self.percent = tk.StringVar()
+
+        self.percentLabel = tk.Label(self.window, textvariable=self.percent)
+        self.percentLabel.pack()
+
+    def display(self):
+        self.loaded_part += 1
+        self.bar['value'] += 1 / self.all_parts * 100
+        self.percent.set(str(int(self.loaded_part/self.all_parts*100)) + "%")
+        self.window.update_idletasks()
+
+    def click(self):
+        self.button['state'] = tk.ACTIVE
+        self.button.invoke()
+        self.button['state'] = tk.DISABLED
+
+
+def Loading(maximum):
+    for i in tqdm (range (maximum / 10), desc="Loading...", ascii=False, ncols=75):
+        time.sleep(0.01)
 
 class Client():
     # COMMAND
@@ -211,6 +262,7 @@ class Client():
     # MARK
     ERROR = "ERROR"
     CODE_NAME = "#NAME#"
+    AVATAR = "AVATAR"
 
     # SERVER'S COMMAND
     password_instruction = "[SERVER] Insert and confirm password with [/pwd <password> <password>]"
@@ -227,10 +279,17 @@ class Client():
     UI_messages = []
 
     this_name = "You"
+    can_run = True
 
     cmdConsole = CommandConsole()
+    parts = 0
 
     def __init__(self):
+        # Xóa avatar
+        path = __file__[:-9] + "\\avatar"
+        for f in os.listdir(path):
+            os.remove(os.path.join(path, f))
+
         receive_thread = Thread(target = self.receive_messages)
         receive_thread.start()
         update_thread = Thread(target = self.update_messages)
@@ -246,7 +305,8 @@ class Client():
             if self.close == True:
                 return
             try:
-                msg = client_socket.recv(BUFSIZ).decode()
+                msg = client_socket.recv(BUFSIZ)
+
                 # make sure memory is safe to access
                 lock.acquire()
                 self.messages.append(msg)
@@ -265,6 +325,7 @@ class Client():
 
         message = msg.encode("utf8")
         client_socket.send(message)
+        time.sleep(0.1)
 
         # if msg == "/logout":
         #     client_socket.close()
@@ -297,8 +358,15 @@ class Client():
         """
 
         msgs = []
+
+        # Lấy ảnh
+        image_msgs = []
+        need_img = False
+
+        initialize = True
         run = True
         while run:
+
 
             if self.close == True:
                 return
@@ -307,21 +375,84 @@ class Client():
             new_messages = self.get_messages() # get any new messages from client
             msgs.extend(new_messages) # add to local list of messages
 
-            for msg in new_messages: # display new messages
+            for temp_msg in new_messages: # display new messages
+                # print(temp_msg)
+                msg = None
+                try:
+                    msg = temp_msg.decode()
+                except:
+                    # print(cnt, "cant decode")
+                    if initialize == True:
+                        Thread(target=Loading, args=(self.parts, )).start()
+                        self.parts = 0
+                        initialize = False
+
+                    if need_img == True:
+                        image_msgs.append(temp_msg)
+                    continue
+
                 # print(msg)
+                if len(msg) > len("#LEN#") and msg[:5] == "#LEN#":
+                    self.parts = int(msg[5:])
+                    continue
+
+                if msg == "ENDofFILE":
+                    initialize = True
+
+                    # Truy xuất ảnh
+                    print("Write Ava")
+                    path = __file__[:-9] + "\\avatar\\" + self.this_name + ".png"
+                    with open(path, "wb") as file:
+                        for image_data in image_msgs:
+                            file.write(image_data)
+                    image_msgs = []
+                    need_img = False
+
+                    show_img(path)
+                    continue
+
+                if len(msg) > 6 and msg[:6] == self.CODE_NAME:
+
+                    temp_name = msg[6:]
+
+                    # Lấy avatar
+                    print("Get ava")
+                    if temp_name == "You":
+                        path = __file__[:-9] + "\\avatar"
+                        for f in os.listdir(path):
+                            os.remove(os.path.join(path, f))
+                    else:
+                        need_img = True
+
+                    # Đổi tên
+                    self.this_name = temp_name
+                    self.cmdConsole.this_name = self.this_name
+
+                    continue
 
                 if self.close == True:
                     return
+
+                if msg == self.AVATAR:
+                    need_avatar = "Yes" if self.cmdConsole.Ava_YesNoBox() else "No"
+                    send_messages(need_avatar)
+
+                    filename = self.cmdConsole.Img_Selecting()
+                    print(filename)
+                    show_img(filename)
+                    with open(filename, "rb") as image:
+                        image_data = image.read(2048)
+                        while image_data:
+                            client_socket.send(image_data)
+                            image_data = image.read(2048)
+                    time.sleep(1)
+                    send_messages("ENDofFILE")
+                    continue
 
                 self.UI_messages.append(msg)
 
                 if msg == self.ERROR:
                     messagebox.showwarning(title="Warning", message=self.ERROR)
-                    continue
-
-                if len(msg) > 6 and msg[:6] == self.CODE_NAME:
-                    self.this_name = msg[6:] 
-                    self.cmdConsole.this_name = self.this_name
                     continue
 
                 type = 1
