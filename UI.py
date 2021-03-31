@@ -131,7 +131,6 @@ class UI:
         self.txtSend.grid(row=2, column=1, sticky="NSEW")
 
         Thread(target=self.GetMessage, daemon=True).start()
-        Thread(target=self.SetFriend, daemon=True).start()
         Thread(target=self.SetUser, daemon=True).start()
         # for i in range(10):
         #     self.AddFriend(f"Friend {i}", "white")
@@ -156,47 +155,45 @@ class UI:
     def GetMessage(self):
         while self.run:
             msg = self.client.receive_messages()
-
+            try:
+                msg = msg.decode()
+            except:
+                continue
             # Kiểm tra đã xóa đoạn chat cũ chưa
             while self.chat_cleared == False:
                 continue
 
+            if msg == None:
+                continue
             print(msg)
             split_msg = msg.split(" ")
-            if split_msg[0] == "!list":
-                if len(split_msg) != 0:
-                    self.friend_list = split_msg[1:]
+            # if split_msg[0] == "!ADD":
+            #     friend = split_msg[1]
+            #     if not friend in self.friend_list:
+            #         self.friend_list.append(split_msg[1])
+            #         self.AddFriend(friend)
 
-            elif split_msg[0] == "!online_list":
-                if len(split_msg) != 0:
-                    self.online_friend_list = split_msg[1:]
+            # elif split_msg[0] == "!online_list":
+            #     if len(split_msg) != 0:
+            #         self.online_friend_list = split_msg[1:]
 
-            elif msg[0] == "?":
-                msg_temp = msg[1:]
-                msg_list = msg_temp.split("\n")
-                for message in msg_list:
-                    message_split = message.split(" ")
-                    if len(message_split) > 1:
-                        Message(
-                            root=self.frmChat,
-                            text=" ".join(message_split[1:]),
-                            ui=self,
-                            username=message_split[0][2:-1],
-                            color="white",
-                        )
-                    self.frmChat.canvas.yview_moveto("1.0")
+            # elif msg[0] == "?":
+            #     msg_temp = msg[1:]
+            #     msg_list = msg_temp.split("\n")
+            #     for message in msg_list:
+            #         message_split = message.split(" ")
+            #         if len(message_split) > 1:
+            #             Message(
+            #                 root=self.frmChat,
+            #                 text=" ".join(message_split[1:]),
+            #                 ui=self,
+            #                 username=message_split[0][2:-1],
+            #                 color="white",
+            #             )
+            #         self.frmChat.canvas.yview_moveto("1.0")
             self.msg_loaded = True
 
     # Thiết lập danh sách bạn bè
-    def SetFriend(self):
-        self.client.send_messages("/online_list")
-        time.sleep(0.5)
-        self.client.send_messages("/list")
-        time.sleep(0.5)
-        for friend in self.online_friend_list:
-            self.AddFriend(friend, color="green")
-        for friend in self.friend_list:
-            self.AddFriend(friend, color="white")
 
     # Thêm bạn vào danh sách bạn bè
     def AddFriend(self, username, color):

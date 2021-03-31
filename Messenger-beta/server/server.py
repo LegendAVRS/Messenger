@@ -3,7 +3,9 @@ from threading import Thread
 import time
 import datetime
 from collections import OrderedDict
+from shutil import copyfile
 import os
+import cv2
 
 from users import User
 import info_database as db
@@ -46,6 +48,12 @@ MEMBER = "MEMBER"
 OK = "ACCEPTED"
 ERROR = "ERROR"
 CODE_NAME = "#NAME#"
+CONNECT = "CONNECT"
+DISCONNECT = "DISCONNECT"
+ADD = "ADD"
+GROUP = "GROUP"
+AVATAR = "AVATAR"
+SET_AVA = "SET_AVA"
 
 # PHẢN HỒI TỪ SERVER
 login_instruction = "Insert [/login <username> <password>]"
@@ -90,6 +98,34 @@ group = {}  # tên các nhóm gồm các thành viên của nhóm
 SERVER = socket(AF_INET, SOCK_STREAM)
 SERVER.bind(ADDR)  # tạo server
 
+def Avatar(client, name):
+    """
+    => Gửi avatar cho người dùng
+    param client: client của người dùng
+    param name: tên người dùng
+    return: None
+    """
+
+    path = __file__[:-9] + "\\avatar\\" + name + ".png"
+
+    # img_file = open(__file__[:-9] + "\\avatar\\" + "test.png", "wb")
+
+    with open(path, "rb") as image:
+        cnt = 0
+        image_data = image.read(512)
+        while image_data:
+            cnt += 1
+            image_data = image.read(512)
+
+    send_messages(client, f"#LEN#{str(cnt)}")
+
+    with open(path, "rb") as image:
+        image_data = image.read(512)
+        while image_data:
+            client.send(image_data)
+            image_data = image.read(512)
+    time.sleep(5)
+    send_messages(client, "ENDofFILE")
 
 def get_messages(client):
     """
@@ -172,6 +208,18 @@ def client_login(client):
     except Exception as e:
         print("[EXCEPTION in LOGIN]", e)
         return -1
+
+
+def All_list_append(name):
+    """
+    => Thêm tên người dùng mới vào list của những người dùng khác
+    param name: tên người dùng được thêm
+    return: None
+    """
+
+    for username in client_online:
+        recv_conn, recv_addr = client_online[username]
+        send_messages(recv_conn, f"!ADD {name}")
 
 
 def client_register(client):
@@ -263,8 +311,8 @@ def client_register(client):
     # Đăng ký thành công
 
     user = User(username, password)  # tạo một User mới
-    db.insert(user)  # lưu trữ vào database
-    client_info[username] = password  # Lưu trữ vào chương trình
+    # db.insert(user)  # lưu trữ vào database
+    # client_info[username] = password  # Lưu trữ vào chương trình
 
     # Tạo khung lưu trữ mới
     newpath = store.mainpath + username + ".db"
@@ -275,10 +323,47 @@ def client_register(client):
         "[ANNOUNCEMENT] New user has been added"
     )  # Thông báo tài khoản mới đc đăng ký
     print("=> ", user.username, user.password)
+
+    try:
+        while True:
+            send_messages(client, AVATAR)
+
+            msg = get_messages(client)
+
+            if msg == False: # không nhận được tin nhắn
+                return -1
+
+            if msg == QUIT:
+                return QUIT # Thoát
+
+            if msg == "Yes":
+                path = __file__[:-9] + "\\avatar\\" + user.username + ".png"
+
+                with open(path, "wb") as file:
+                    while True:
+                        image_chunk = client.recv(2048)
+                        # print(image_chunk) // test
+                        if image_chunk == bytes("ENDofFILE", "utf8"):
+                            break
+                        file.write(image_chunk)
+                # print("end of process") // test
+                break
+
+            elif msg == "No":
+                default_img = __file__[:-9] + "\\default.jpg"
+                dir_path = __file__[:-9] + "\\avatar\\" + user.username + ".png"
+                copyfile(default_img, dir_path)
+                break
+            
+            else:
+                send_messages(client, error)
+    except Exception as e:
+        print("[EXCEPTION]", e)
+        return -1
+
     return OK
 
 
-# Changed
 def List(client):
     """
     => Gửi danh sách những tài khoản đã đăng ký
@@ -295,7 +380,6 @@ def List(client):
     send_messages(client, msg)
 
 
-# Change
 def Online_list(client):
     """
     => Gửi danh sách những người đang online
@@ -555,6 +639,68 @@ def group_chat(client, username, name):
         groupchat.update_chat(msg)
 
 
+def Online_list_display(client, name):
+    """
+    => Gửi tin nhắn để hiện thị những người đang online
+    param client: client của người dùng
+    param name: tên của người dùng
+    return: None
+    """
+
+    for username in client_online:
+        send_messages(client, f"!CONNECT {username}")
+
+
+def List_display(client, name):
+    """
+    => Gửi tin nhắn để hiện thị những tài khoản đang hiện hữu
+    param client: client của người dùng
+    param name: tên của người dùng
+    return: None
+    """
+
+    for username in client_info:
+        send_messages(client, f"!ADD {username}")
+
+
+def All_online_list_append(name):
+    """s
+    => Thêm name vào online_list của những người dùng khác
+    param name: tên người dùng được thêm vào
+    return: None
+    """
+
+    for username in client_online:
+        recv_conn, recv_addr = client_online[username]
+        send_messages(recv_conn, f"!CONNECT {name}")
+
+
+def All_online_list_discard(name):
+    """
+    => Xóa name ra khỏi online_list của những người dùng khác
+    param name: tên người dùng bị xóa đi
+    return: None
+    """
+
+    for username in client_online:
+        recv_conn, recv_addr = client_online[username]
+        send_messages(recv_conn, f"!DISCONNECT {name}")
+
+
+def Which_group_are_you_in(client, name):
+    """
+    => Gửi tin nhắn những nhóm name thuộc về
+    param client: client của người dùng
+    param name: tên người dùng
+    return: None
+    """
+
+    for group_name in group:
+        for member in group[group_name]:
+            if name == member[0]:
+                send_messages(client, f"!GROUP {group_name}")
+
+
 def client_and_server(client, addr):
     """
     => Giao tiếp giữa SERVER và người dùng
@@ -638,8 +784,15 @@ def client_and_server(client, addr):
                 =============================================="""
     send_messages(client, welcomeback_msg)
 
+
+    Which_group_are_you_in(client, user.username)
+    Online_list_display(client, user.username)
+    List_display(client, user.username)
+
     client_online[user.username] = (client, addr)
     client_location[user.username] = AT_SERVER
+    
+    All_online_list_append(user.username)
 
     # Truy cập chat
     while True:
@@ -647,6 +800,9 @@ def client_and_server(client, addr):
 
         if msg == False:
             print(disconnect_msg + f" with name = {user.username}")
+
+            All_online_list_discard(user.username)
+
             try:
                 client_online.pop(user.username)
             except Exception as e:
@@ -655,6 +811,8 @@ def client_and_server(client, addr):
 
         if msg == LOGOUT:  # đăng xuất
             print(f"[LOGOUT] {user.username} has logged out")
+            
+            All_online_list_discard(user.username)
 
             send_messages(client, CLEAR)
             send_messages(client, "You have been logged out")
@@ -707,6 +865,9 @@ def client_and_server(client, addr):
                     command == -1
                 ):  # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
                     print(disconnect_msg + f" with name = {user.username}")
+
+                    All_online_list_discard(user.username)
+
                     try:
                         client_online.pop(user.username)
                     except Exception as e:
@@ -749,6 +910,9 @@ def client_and_server(client, addr):
                     command == -1
                 ):  # chạy sinh lỗi hoặc chương trình client bị tắt đột ngột
                     print(disconnect_msg + f" with name = {user.username}")
+
+                    All_online_list_discard(user.username)
+
                     try:
                         client_online.pop(user.username)
                     except Exception as e:

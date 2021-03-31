@@ -18,7 +18,7 @@ def raise_frame(frame):
 class Start_UI:
     run = True
     msg = ""
-    # client = None
+    client = None
 
     def __init__(self, client):
         self.client = client
@@ -60,6 +60,7 @@ class Start_UI:
             if self.client.logged_in:
                 break
             self.msg = self.client.receive_messages()
+            self.msg = self.msg.decode()
             print(self.msg)
             if self.client.logged_in:
                 break
@@ -83,6 +84,7 @@ class Start_UI:
         )
 
     def CheckSignupInput(self, event=None):
+        # self.SwitchToAvatar()
         self.client.send_messages("/quit")
         time.sleep(0.2)
         username = self.signup_ui.txtUsername.get_string()
