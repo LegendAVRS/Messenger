@@ -335,7 +335,7 @@ class Message(tk.Frame):
                 self.text.count("w") + self.text.count("m") + self.text.count("b")
             )
             self.txtText["width"] = (
-                len(self.text) - ceil(space_cnt * 0.8) + ceil(db_count * 0.8)
+                len(self.text) - ceil(space_cnt * 0.8) + ceil(db_count * 0.8) + 10
             )
 
         self.txtText.insert(tk.END, self.text)

@@ -405,7 +405,6 @@ def Help(client):
 
     msg = """?[SERVER] "/tp + <name>"                      Move to chat room with <name>
 "/help"                                    List all command
-"/join + <name>"                   Join a group
 "/party_create  + <name>"   Create a group
 "/party_invite + <name>"      Invite a person to your group
 """
@@ -600,17 +599,17 @@ def group_chat(client, username, name):
                 continue
 
             if invited_member not in client_info:  # Không tồn tại người dùng
-                send_messages(client, ERROR)
+                send_messages(client, '?[SERVER] User does not exist')
                 continue
 
             if role(username, name) == MEMBER:  # Member không được thêm thành viên
-                send_messages(client, ERROR)
+                send_messages(client, '?[SERVER] You are not the host')
                 continue
 
             if is_in_group(
                 invited_member, name
             ):  # Nếu thành viên đã tồn tại trong nhóm
-                send_messages(client, ERROR)
+                send_messages(client, '?[SERVER] User already invited')
                 continue
 
             # Lưu trữ thành viên
