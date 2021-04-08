@@ -80,7 +80,7 @@ class Avatar_UI:
         self.mask = Image.open(path)
 
         # load ảnh tạm thời
-        temp_img_path = __file__[:-12] + "suisei1.png"
+        temp_img_path = __file__[:-12] + "default.jpg"
         
         self.img = Image.open(temp_img_path)
         self.output = ImageOps.fit(self.img, self.size, centering=(0.5, 0.5))
