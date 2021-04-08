@@ -1,0 +1,5 @@
+- Gắn UI với những thay đổi mới (nhận avatar, hiển thị avatar)
+- Tạo thêm một phần khung chat cho SERVER
+- Thêm '?[SERVER] cho các tin nhắn của server cho client
+- Chỉnh lại delay của !ADD, !GROUP, !CONNECT
+- Khỏi động Which_group_are_you_in khi có group được tạo
